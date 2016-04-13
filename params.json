@@ -1,6 +1,6 @@
 {
   "name": "Blogs",
   "tagline": "一些文章",
-  "body": "1. 内存栅栏\r\n2. 无所队列\r\n3. 安全udp\r\n4. kademlia网络和协议",
+  "body": "1. 内存栅栏[memory fence](memorybarrier_fence.htm)\r\n2. 无所队列\r\n3. 安全udp\r\n4. kademlia网络和协议",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
