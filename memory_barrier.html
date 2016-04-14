@@ -3,8 +3,8 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<title>内容列表</title>
-<!-- 2016-04-13 Wed 18:48 -->
+<title>内存栅栏</title>
+<!-- 2016-04-14 Thu 16:41 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="robin" />
@@ -137,64 +137,176 @@ for the JavaScript code in this tag.
 </head>
 <body>
 <div id="content">
-<h1 class="title">内容列表</h1>
+<h1 class="title">内存栅栏</h1>
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#sec-1">内存栅栏 view it</a></li>
-<li><a href="#sec-2">无锁队列</a>
+<li><a href="#sec-1">register &amp; cache:</a></li>
+<li><a href="#sec-2">Reordering，分两种，compiler reordering 和 cpu reordering</a>
 <ul>
-<li><a href="#sec-2-1">lockfree</a></li>
+<li><a href="#sec-2-1">1. compiler reordering</a></li>
+<li><a href="#sec-2-2">2. cpu memory reording</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
-
 <div id="outline-container-sec-1" class="outline-2">
-<h2 id="sec-1">内存栅栏 <a href="memory_barrier.html">view it</a></h2>
+<h2 id="sec-1">register &amp; cache:</h2>
 <div class="outline-text-2" id="text-1">
+<pre>
+                 | <--------------内存-------------->  |
+    register -- CPU -- storebuffer -- cpucache -- memory
+                                     [ 所 有 线 程 可 见]
+
+       +-----------------+
+       |    register     |
+       |-----------------+
+       |     cpu         |
+       + ---|--------|----+
+         + ---+    + ---+
+         |store   |load
+         |buffer  |buffer
+         |   |    |   |
+         |   |    |   |
+         |   |    |   |
+         +-|-+    +-|-+
+      +-------------------+
+      |   L1,L2,L3 Cache  |
+      |                   |
+      +-------------------+
+</pre>
+
 <p>
-栅栏的存在是为了解决多线程乱序执行的问题:而乱序有两种 
+volatile:告诉编译器，这个变量不能优化到register，每次读写直接走内存
 </p>
-<ol class="org-ol">
-<li>编译器重排指令
-</li>
-<li>cpu为了效率，颠倒指令执行顺序
-</li>
-</ol>
+
+<div class="org-src-container">
+
+<pre class="src src-c-n">//有问题
+thread 1 
+{
+ a=1 //cache miss,a的赋值放到storebuffer而中，而b=2赋值成功
+ b=2
+}
+//没问题
+thread 1 
+{
+ a=1 
+ memroy_barrier();//保证storebuffer中的操作都完成
+ b=2
+}
+</pre>
+</div>
 </div>
 </div>
 
 <div id="outline-container-sec-2" class="outline-2">
-<h2 id="sec-2">无锁队列</h2>
+<h2 id="sec-2">Reordering，分两种，compiler reordering 和 cpu reordering</h2>
 <div class="outline-text-2" id="text-2">
 </div><div id="outline-container-sec-2-1" class="outline-3">
-<h3 id="sec-2-1">lockfree</h3>
+<h3 id="sec-2-1">1. compiler reordering</h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
-什么是lockfree
-</p>
-
-<p>
-<a href="img/number/0.png">hello</a>
-<img src="img/number/1.png" alt="1.png" />
-<img src="img/1.png" alt="1.png" />
-<i>img/1.png</i>
+Compiler Reordering能够提高程序的运行效率。但有时候 (尤其是针对Parallel Programming)，
+我们并不想让Compiler将我们的程序进行Reordering。此时，就需要有一种机制，
+能够告诉Compiler，不要进行Reordering，这个机制，就是Compiler Memory Barrier。
 </p>
 
 
 <p>
-<i>注脚1</i>
-<i>注脚2</i>
+顾名思义，Complier Memory Barrier就是阻止Compiler进行Reordering的Barrier Instruction；
+  Compiler Memory Barrier Instructions:
+  GNU
+</p>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr">1: </span><span style="color: #66D9EF;">asm</span> <span style="color: #66D9EF;">volatile</span>(<span style="color: #E6DB74;">""</span> ::: <span style="color: #E6DB74;">"memory"</span>);
+<span class="linenr">2: </span><span style="color: #66D9EF;">__asm__</span> __volatile__ (<span style="color: #E6DB74;">""</span> ::: <span style="color: #E6DB74;">"memory"</span>);
+</pre>
+</div>
+
+<p>
+Intel ECC Compiler
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr">1: </span>__memory_barrier();
+</pre>
+</div>
+
+<p>
+Microsoft Visual C++
+</p>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr">1: </span>_ReadWriteBarrier();
+</pre>
+</div>
+
+<p>
+【注意】：
+Compiler Memory Barrier只是一个通知的标识，告诉Compiler在看到此指令时，不要对此指令的上下部分做Reordering。
+在编译后的汇编中，Compiler Memory Barrier消失，    CPU不能感知到Compiler Memory Barrier的存在，
+这点与后面提到的CPU Memory Barrier有所不同；
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-2-2" class="outline-3">
+<h3 id="sec-2-2">2. cpu memory reording</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+Memory Barrier:
+ A memory barrier, is a type of barrier instruction which causes a central processing unit (CPU) or compiler 
+ to enforce an ordering constraint on memory operations issued before and after the barrier instruction. 
+ This typically means that certain operations are guaranteed to be performed before the barrier, and others after.
 </p>
 
 <p>
-<a href="#my-anchor">internallinkage</a>
+顾名思义，Compiler Memory Barrier既然是用来告诉Compiler在编译阶段不要进行指令乱排，
+那么CPU Memory Barrier就是用来告诉CPU，在执行阶段不要交互两条操作内存的指令的顺序；
+注意：由于CPU在执行时，必须感知到CPU Memory Barrier的存在，因此CPU Memory Barrier是一条真正的指令，
+存在于编译后的汇编代码中；
 </p>
+
+
 <p>
-<a id="my-anchor" name="my-anchor"></a>* hello
+更为复杂的CPU Memory Barriers
+Store Barrier (Read Barrier)
+所有在Store Barrier前的Store操作，必须在Store Barrier指令前执行完毕；
+而所有Store Barrier指令后的Store操作，必须在Store指令执行结束后才能开始；
+</p>
+
+<p>
+Store Barrier只针对Store(Write)操作，对Load无任何影响；
+</p>
+
+<p>
+Load Barrier (Write Barrier)
+将Store Barrier的功能，全部换为针对Load操作即可；
+</p>
+
+<dl class="org-dl">
+<dt> Full Barrier </dt><dd>Load + Store Barrier，Full Barrier两边的任何操作，均不可交换顺序；
+</dd>
+
+<dt> Only CPU Memory Barrier </dt><dd>asm volatile(“mfence”);
+</dd>
+
+<dt> CPU + Compiler Memory Barrier </dt><dd>asm volatile(“mfence” ::: ”memory”);
+</dd>
+</dl>
+
+<p>
+&#x2013;【除了CPU本身提供的MemoryBarrier指令，Lock Instructions也能实现MemoryBarrier 】&#x2013;
+ 因为：Reads or writes cannot be reordered with I/O instructions, locked instructions, or serializing instructions.
+</p>
+
+<p>
+既然read/write不能穿越locked instructions进行reordering，那么所有带有lock prefix的指令，都构成了一个天然的Full  Memory Barrier；
 </p>
 </div>
 </div>
@@ -202,7 +314,7 @@ for the JavaScript code in this tag.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: robin</p>
-<p class="date">Created: 2016-04-13 Wed 18:48</p>
+<p class="date">Created: 2016-04-14 Thu 16:41</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
