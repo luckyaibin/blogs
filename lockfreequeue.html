@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>lockfreequeue</title>
+<!-- 2016-04-15 Fri 18:46 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="robin" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">lockfreequeue</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">什么是lockfree</a>
+<ul>
+<li><a href="#sec-1-1">不是不需要同步，而是不用开销大的mutex semaphore等，仅仅使用 CAS 原子操作进行*同步*</a></li>
+</ul>
+</li>
+<li><a href="#sec-2">ABA问题</a>
+<ul>
+<li><a href="#sec-2-1">什么事ABA问题</a></li>
+<li><a href="#sec-2-2">我们的ringbuffer实现的lockfree queue会产生ABA问题吗？</a></li>
+</ul>
+</li>
+<li><a href="#sec-3">memory barrier</a></li>
+<li><a href="#sec-4">ringbuffer</a></li>
+<li><a href="#sec-5">实现</a>
+<ul>
+<li><a href="#sec-5-1">CAS代码（win）</a></li>
+<li><a href="#sec-5-2">lockfree queue 代码</a></li>
+</ul>
+</li>
+<li><a href="#sec-6">cache treshing（内存颠簸）</a></li>
+</ul>
+</div>
+</div>
+<p>
+#+TITLE 无锁队列
+</p>
+
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1">什么是lockfree</h2>
+<div class="outline-text-2" id="text-1">
+</div><div id="outline-container-sec-1-1" class="outline-3">
+<h3 id="sec-1-1">不是不需要同步，而是不用开销大的mutex semaphore等，仅仅使用 CAS 原子操作进行*同步*</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+因为使用mutex会导致操作系统进行线程context的切换，而CAS仅仅是个函数调用（当然也有开销，锁住总线）
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2">ABA问题</h2>
+<div class="outline-text-2" id="text-2">
+</div><div id="outline-container-sec-2-1" class="outline-3">
+<h3 id="sec-2-1">什么事ABA问题</h3>
+<div class="outline-text-3" id="text-2-1">
+<ul class="org-ul">
+<li>有一个线程共享变量v
+</li>
+<li>thread1中读到v的值为A，这时线程被抢占，thread2被执行
+</li>
+<li>thread2修改v的值为B，然后又改成A,这时thread2被抢占，thread1又执行
+</li>
+<li>thread1中的v值，还是A，thread1就认为v的值没有变化，继续执行
+</li>
+</ul>
+
+<p>
+ABA最容易发生在lockfree算法中，cas首当其冲，因为cas判断的是指针的地址，如果这个地址被重用，问题就很大了
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-2-2" class="outline-3">
+<h3 id="sec-2-2">我们的ringbuffer实现的lockfree queue会产生ABA问题吗？</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+答案是:会
+稍后解决ABA问题。
+</p>
+<pre class="example">
+1. thread1:
+    1 2 3 4 5 6 7 8
+        t     h
+              seq
+  在cas之前被thread2抢占
+
+2. thread2:
+    经过push和pop之后，head经过 7 8 9 10 11 12 13 14（每个都取模),又变回了6，读取指针经过4 5 6 变成7,此时又被thread1抢占
+    1 2 3 4 5 6 7 8
+              h t
+
+3. 以上h:head,t:tail
+    1 2 3 4 5 6 7 8
+                t
+                h
+4. 结果，就是	ok = CAS(&amp;rb-&gt;head, seq, (seq + 1) % sz);判定成功，head被修改为了head+1
+   变成了逻辑上的空list
+</pre>
+
+<pre class="example">
+/*
+head 是第一个可写位置，tail 是第一个可读位置
+       tail=1                        head=6
++-----+-----+-----+-----+-----+-----+-----+-----+
+|empty| A   |  B  |  C  |  D  |  E  |empty|empty|
++-----+-----+-----+-----+-----+-----+-----+-----+
+   0     1     2     3     4     5     6     7
+
+  如果不限制head和tail，那么当head == tail的时候，无法区分是满还是空
+  所以这里限制满的时候 (head + sz)%sz - 1 == tail，就是说满的时候
+  元素数量等于sz - 1;
+  而当(head + sz)%sz  == tail 表示空，最开始head=0，tail=0，也就表示空
+
+
+  下面显示了push和pop时候维护的4个有用的元素：
+  head表示当前可以write（push）的索引
+  tail表示当前可以read(pop)的索引
+
+  [front_door,head) 表示当前正在写入的indexes，读操作不能越过front_door( (tail + sz) % sz == front_door ) 
+  [back_foor,tail)  表示当前正在读取的indexes，写操作不能越b过back_door ( (head + sz + 1) % sz == back_door )
+  &lt;---------------------- &lt;-------------------------
+  |										          / \
+  |										           |
+  |										           |
+ \ /									           |
+  ... back_door --&gt; tail ... front_door --&gt; head ...
+*/
+</pre>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3">memory barrier</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+*关于lockfree queue*我这个代码，暂时没想清楚到底 memory barrier 是否应该加，以及加在哪里
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4">ringbuffer</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+实际上是一个数组，通过对数组的下标index进行取模%操作来进行访问，当超过长度会回环到数组的开始，看起来是一个ring而已
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-5" class="outline-2">
+<h2 id="sec-5">实现</h2>
+<div class="outline-text-2" id="text-5">
+</div><div id="outline-container-sec-5-1" class="outline-3">
+<h3 id="sec-5-1">CAS代码（win）</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+为什么要自己写CAS呢？Windows下的InterLockedCompareExchange不能知道是否更新成功（它只返回了更新之前的旧值），包装一下方便使用
+</p>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#27880;&#24847;&#65292;&#36825;&#20010;&#38169;&#35823;&#30340;cas&#23548;&#33268;&#20102;&#26080;&#38145;&#38431;&#21015;&#30340;bug</span>
+<span class="linenr"> 2: </span><span style="color: #66D9EF;">inline</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">CAS_wrong</span>(<span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> * <span style="color: #F92672;">reg</span>, <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">oldval</span>, <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">newval</span>)
+<span class="linenr"> 3: </span>{
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">old_v</span> = *reg;
+<span class="linenr"> 5: </span>    InterlockedCompareExchange(reg, newval, oldval);
+<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">return</span> old_v != *reg;
+<span class="linenr"> 7: </span>}
+<span class="linenr"> 8: </span>
+<span class="linenr"> 9: </span><span style="color: #66D9EF;">inline</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">CAS</span>(<span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> * <span style="color: #F92672;">reg</span>, <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">oldval</span>, <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">newval</span>)
+<span class="linenr">10: </span>{
+<span class="linenr">11: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">old_v</span> = InterlockedCompareExchange(reg, newval, oldval);
+<span class="linenr">12: </span>    <span style="color: #66D9EF;">return</span> old_v == oldval;
+<span class="linenr">13: </span>}
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-5-2" class="outline-3">
+<h3 id="sec-5-2">lockfree queue 代码</h3>
+<div class="outline-text-3" id="text-5-2">
+<ul class="org-ul">
+<li>ringbuffer 和 lockfree queue定义
+</li>
+</ul>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #A6E22E;">      #define</span> <span style="color: #F92672;">RINGBUFFERSZ</span> 8
+<span class="linenr"> 2: </span><span style="color: #66D9EF;">struct</span> <span style="color: #66D9EF;">ringbuffer</span>
+<span class="linenr"> 3: </span>{
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">head</span>;<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">write index</span>
+<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">tail</span>;<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">read index</span>
+<span class="linenr"> 6: </span>
+<span class="linenr"> 7: </span>    <span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">front_door</span>;
+<span class="linenr"> 8: </span>    <span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">back_door</span>;
+<span class="linenr"> 9: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span>;
+<span class="linenr">10: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> *<span style="color: #F92672;">buf</span>;
+<span class="linenr">11: </span>};
+<span class="linenr">12: </span>
+<span class="linenr">13: </span><span style="color: #66D9EF;">ringbuffer</span> * <span style="color: #F92672; font-style: italic;">create_ringbuffer</span>(<span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">bfsz</span>)
+<span class="linenr">14: </span>{
+<span class="linenr">15: </span>    <span style="color: #66D9EF;">ringbuffer</span> *<span style="color: #F92672;">rb</span> = (<span style="color: #66D9EF;">ringbuffer</span>*)malloc(<span style="color: #66D9EF;">sizeof</span>(ringbuffer));
+<span class="linenr">16: </span>    memset(rb, 0, <span style="color: #66D9EF;">sizeof</span>(*rb));
+<span class="linenr">17: </span>    rb-&gt;head = 0;
+<span class="linenr">18: </span>    rb-&gt;tail = 0; 
+<span class="linenr">19: </span>    rb-&gt;front_door = 0;<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#26368;&#21518;&#19968;&#20010;&#30495;&#27491;&#21487;&#20197;pop&#30340;</span>
+<span class="linenr">20: </span>    rb-&gt;back_door =0;<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20174;&#23427;&#20043;&#21518;pop</span>
+<span class="linenr">21: </span>    rb-&gt;sz = bfsz;
+<span class="linenr">22: </span>    rb-&gt;buf = (<span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> *)malloc(<span style="color: #66D9EF;">sizeof</span>(<span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span>)* bfsz);
+<span class="linenr">23: </span>    memset(rb-&gt;buf, 0, <span style="color: #66D9EF;">sizeof</span>(<span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span>)* bfsz);
+<span class="linenr">24: </span>
+<span class="linenr">25: </span>    <span style="color: #66D9EF;">return</span> rb;
+<span class="linenr">26: </span>}
+</pre>
+</div>
+
+<ul class="org-ul">
+<li>push操作
+</li>
+</ul>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">push</span>(<span style="color: #66D9EF;">ringbuffer</span>* <span style="color: #F92672;">rb</span>, <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">data</span>)
+<span class="linenr"> 2: </span>{
+<span class="linenr"> 3: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">seq</span>;
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">back_door</span>;
+<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
+<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
+<span class="linenr"> 7: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
+<span class="linenr"> 8: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#20889;&#20837;&#30340;&#32034;&#24341;</span>
+<span class="linenr"> 9: </span>    <span style="color: #66D9EF;">do</span> 
+<span class="linenr">10: </span>    {
+<span class="linenr">11: </span>        try_cnt++;
+<span class="linenr">12: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
+<span class="linenr">13: </span>        {
+<span class="linenr">14: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">15: </span>        }
+<span class="linenr">16: </span>        seq = rb-&gt;head;
+<span class="linenr">17: </span>        back_door = rb-&gt;back_door;
+<span class="linenr">18: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz + 1) % sz == back_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check full,&#20889;&#20837;&#19981;&#33021;&#35206;&#30422;&#26410;&#35835;&#21462;&#30340;&#25968;&#25454;</span>
+<span class="linenr">19: </span>            <span style="color: #66D9EF;">return</span> -1;
+<span class="linenr">20: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#28508;&#22312;ABA&#38382;&#39064;&#25152;&#22312;&#65311;&#27492;&#26102;&amp;rb-&gt;head&#34987;&#20854;&#20182;&#32447;&#31243;&#20462;&#25913;&#25104;&#20854;&#20182;&#20540;&#65292;&#28982;&#21518;&#21448;&#20462;&#25913;&#20026;&#21644;seq&#30456;&#31561;&#30340;&#20540;&#65311;</span>
+<span class="linenr">21: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20250;&#20986;&#29616;&#36825;&#20010;&#38382;&#39064;</span>
+<span class="linenr">22: </span>        ok = CAS(&amp;rb-&gt;head, seq, (seq + 1) % sz);
+<span class="linenr">23: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
+<span class="linenr">24: </span>
+<span class="linenr">25: </span>    rb-&gt;buf[seq] = data;
+<span class="linenr">26: </span>
+<span class="linenr">27: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#22914;&#26524;&#32447;&#31243;T1&#20998;&#37197;&#21040;&#30340;&#24207;&#21495;&#31561;&#20110;front_door,&#37027;&#20040;&#21521;&#21069;&#31227;&#21160;front_door&#65292;&#21542;&#21017;&#35828;&#26126;&#26377;&#20854;&#20182;&#32447;&#31243;T2(&#25110;&#32773;&#36824;&#26377;T3..)&#21516;&#26102;&#22312;push&#65292;&#38656;&#35201;while&#31561;&#21040;T</span>
+<span class="linenr">28: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#21521;&#21069;&#31227;&#21160;front_door&#20043;&#21518;&#25165;&#33021;&#21521;&#21069;&#31227;&#21160;front_door</span>
+<span class="linenr">29: </span>    try_cnt = 0;
+<span class="linenr">30: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;front_door, seq, (seq + 1)%sz))
+<span class="linenr">31: </span>    {
+<span class="linenr">32: </span>        try_cnt++;
+<span class="linenr">33: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
+<span class="linenr">34: </span>        {
+<span class="linenr">35: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">36: </span>        }
+<span class="linenr">37: </span>    }
+<span class="linenr">38: </span>    <span style="color: #66D9EF;">return</span> 0;
+<span class="linenr">39: </span>}
+</pre>
+</div>
+<ul class="org-ul">
+<li>pop操作
+</li>
+</ul>
+<div class="org-src-container">
+
+<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">pop</span>(<span style="color: #66D9EF;">ringbuffer</span>* <span style="color: #F92672;">rb</span>)
+<span class="linenr"> 2: </span>{
+<span class="linenr"> 3: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">head</span>;
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">seq</span>;
+<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">front_door</span>;
+<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
+<span class="linenr"> 7: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
+<span class="linenr"> 8: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
+<span class="linenr"> 9: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#35835;&#21462;&#30340;&#32034;&#24341;</span>
+<span class="linenr">10: </span>    <span style="color: #66D9EF;">do</span> 
+<span class="linenr">11: </span>    {
+<span class="linenr">12: </span>        try_cnt++;
+<span class="linenr">13: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
+<span class="linenr">14: </span>        {
+<span class="linenr">15: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">16: </span>        }
+<span class="linenr">17: </span>        head = rb-&gt;head;
+<span class="linenr">18: </span>        seq = rb-&gt;tail;
+<span class="linenr">19: </span>        front_door = rb-&gt;front_door;
+<span class="linenr">20: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz) % sz == front_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check empty&#65292;&#19981;&#33021;&#35835;&#21462;&#26410;&#20889;&#20837;&#23436;&#25104;&#30340;&#25968;&#25454;</span>
+<span class="linenr">21: </span>        {
+<span class="linenr">22: </span>            <span style="color: #66D9EF;">return</span> -1;
+<span class="linenr">23: </span>        }
+<span class="linenr">24: </span>        ok = CAS(&amp;rb-&gt;tail, seq, (seq + 1) % sz);
+<span class="linenr">25: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
+<span class="linenr">26: </span>
+<span class="linenr">27: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">data</span> = rb-&gt;buf[seq];
+<span class="linenr">28: </span>
+<span class="linenr">29: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#21407;&#29702;&#21644;push&#30340;&#31867;&#20284;</span>
+<span class="linenr">30: </span>    try_cnt = 0;
+<span class="linenr">31: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;back_door,  seq  , (seq+1) % sz))
+<span class="linenr">32: </span>    {
+<span class="linenr">33: </span>        try_cnt++;
+<span class="linenr">34: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
+<span class="linenr">35: </span>        {
+<span class="linenr">36: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">37: </span>        }
+<span class="linenr">38: </span>    }
+<span class="linenr">39: </span>    <span style="color: #66D9EF;">return</span> data;
+<span class="linenr">40: </span>}
+</pre>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-6" class="outline-2">
+<h2 id="sec-6">cache treshing（内存颠簸）</h2>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: robin</p>
+<p class="date">Created: 2016-04-15 Fri 18:46</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

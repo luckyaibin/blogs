@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>内存栅栏</title>
-<!-- 2016-04-14 Thu 16:41 -->
+<!-- 2016-04-15 Fri 18:46 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="robin" />
@@ -308,13 +308,37 @@ Load Barrier (Write Barrier)
 <p>
 既然read/write不能穿越locked instructions进行reordering，那么所有带有lock prefix的指令，都构成了一个天然的Full  Memory Barrier；
 </p>
+
+
+
+
+
+
+
+<p>
+一个关于memory barrier的好文:  <a href="https://dirtysalt.info/memory-barrier.html">https://dirtysalt.info/memory-barrier.html</a>
+</p>
+
+
+
+<p>
+[robin]根据我的理解
+</p>
+<ul class="org-ul">
+<li>compiler memory barrier ::: 实际上告诉编译器，在barrier之后要刷新寄存器[除此之外，也防止编译器进行指令重排]
+</li>
+<li>volatile ::: 是告诉编译器，不要把我放在寄存器，对我的读写都是直接操作内存
+</li>
+<li>cpu memory barrier ::: 因为cpu有乱序写OOS(out of order store),所以两个线程看到的值可能不一样
+</li>
+</ul>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: robin</p>
-<p class="date">Created: 2016-04-14 Thu 16:41</p>
+<p class="date">Created: 2016-04-15 Fri 18:46</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
