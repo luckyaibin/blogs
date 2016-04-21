@@ -1,0 +1,1182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>MemoryBarrierAHardwareViewForSoftwareHackers</title>
+<!-- 2016-04-22 Fri 01:02 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="robin" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">MemoryBarrierAHardwareViewForSoftwareHackers</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">summary</a></li>
+<li><a href="#sec-2">1. 缓存结构(Cache structure)</a></li>
+<li><a href="#sec-3">2. 缓存一致协议(Cache-coherence protocols)</a>
+<ul>
+<li><a href="#sec-3-1">2.1 MESI States</a></li>
+<li><a href="#sec-3-2">2.2 MESI Protocol Messages</a></li>
+<li><a href="#sec-3-3">2.3 MESI状态图( MESI  state Diagram)</a>
+<ul>
+<li><a href="#sec-3-3-1">Transition (a):</a></li>
+<li><a href="#sec-3-3-2">Transition (b):</a></li>
+<li><a href="#sec-3-3-3">Transition (c):</a></li>
+<li><a href="#sec-3-3-4">Transition (d):</a></li>
+<li><a href="#sec-3-3-5">Transition (e):</a></li>
+<li><a href="#sec-3-3-6">Transition (f):</a></li>
+<li><a href="#sec-3-3-7">Transition (g):</a></li>
+<li><a href="#sec-3-3-8">Transition (h):</a></li>
+<li><a href="#sec-3-3-9">Transition (i):</a></li>
+<li><a href="#sec-3-3-10">Transition (j):</a></li>
+<li><a href="#sec-3-3-11">Transition (k):</a></li>
+<li><a href="#sec-3-3-12">Transition (l):</a></li>
+</ul>
+</li>
+<li><a href="#sec-3-4">2.4 MESI 协议的例子(MESI Protocol Example)</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">3 不必要的延迟情况下存储结果</a>
+<ul>
+<li><a href="#sec-4-1">3.1 Store Buffers(存储缓冲&#x2013;把写(store)指令放到缓冲里,cpu继续执行)</a></li>
+<li><a href="#sec-4-2">3.2 Store缓冲提前打望?(Store Forwarding)</a></li>
+<li><a href="#sec-4-3">3.3 Store Buffer 和内存屏障(Store Buffers and Memory Barriers)</a>
+<ul>
+<li><a href="#sec-4-3-1">3.3.1 不带内存屏障</a></li>
+<li><a href="#sec-4-3-2">3.3.2 带内存屏障</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#sec-5">4 存储序列导致了不必要的停顿(Store Sequences Result in Unnecessary Stalls)</a>
+<ul>
+<li><a href="#sec-5-1">4.1 Invalidate Queues</a></li>
+<li><a href="#sec-5-2">4.2 Invalidate Queues and Invalidate Acknowledge</a></li>
+<li><a href="#sec-5-3">4.3 无效队列和内存屏障 Invalidate Queues and Memory Barriers</a></li>
+</ul>
+</li>
+<li><a href="#sec-6">5. 读和写内存屏障( Read  and  Write  Memory Barriers)</a></li>
+<li><a href="#sec-7">6 内存屏障序列的例子</a></li>
+</ul>
+</div>
+</div>
+<p>
+#+TITLE Memory Barriers: a Hardware View for Software Hackers
+</p>
+
+<p>
+是什么促使cpu设计者去把memory barrier强加给可怜的SMP软件设计者？
+  因为reordering memory有更好的效率
+</p>
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1">summary</h2>
+<div class="outline-text-2" id="text-1">
+<ol class="org-ol">
+<li>Cache 的结构
+</li>
+<li>介绍缓存同步协议如何确保cpu对每个内存地址上的值协商统一
+</li>
+<li>展示了store buffers和invalidate queues 如何帮助caches和cache-cohenrency protocols 达到高效率
+</li>
+</ol>
+</div>
+</div>
+
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2">1. 缓存结构(Cache structure)</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+<b>仅仅有cache加快了读取,但是由于不同cpu之间的操作需要同步,所以效率很低</b>
+</p>
+
+<pre class="example">
++---------+     +----------+
+|  cpu0   |     |   cpu1   |
++---+-----+     +-----+----+
++---+-----+     +-----+----+
+|  Cache  |     |  Cache   |
++---+-----+     +------+---+
+    |                  |
+    +--interconnect----+
+       +------+------+
+       |   memory    |
+       +-------------+
+</pre>
+
+<p>
+数据在cpu缓存和内存间以固定长度流动，叫做缓存行（cache lines) ,通常是2的指数幂，从16 到 256 bytes。
+</p>
+
+<p>
+比如下图，每个盒子对应一个cache条目，包含了256-byte cache line。条目可能为空，用空盒子表示。
+其他的用缓存的地址表示。因为cache lines 必须256-byte 对齐，所以每个地址的低8 bits是0.硬件hash表用接下来的高4位来匹配行号
+</p>
+
+<pre class="example">
+         way0        way1
+       +----------+----------+.
+0x0    |0x12345000|          |
+       +----------+----------+
+0x1    |0x12345100|          |
+       +----------+----------+
+0x2    |0x12345200|          |
+       +----------+----------+
+               ......
+       +----------+----------+
+       |          |          |
+       +----------+----------+
+       |          |          |
+       +----------+----------+
+0xe    |0x12345E00|0x43210E00|
+       +----------+----------+
+0xf    |          |          |
+       +----------+----------+
+</pre>
+
+<p>
+0x43210E00 意味里面存放的是0x43210E00 - 0x43210EFF的256bytes缓存
+如果程序接下来要访问0x12345f00，这个地址hash到0xf，并且两个ways都是空，所以对应的256bytes line可以被放置
+如果程序接下来要访问0x1233000，hash到0x0,对应的256bytes可以放到way1
+如果程序接下来要访问0x1233E00,那么某个lines必须被eject以放新的cache line。如果被弹出的行接下来又被访问，一个cache miss将产生，被称作“associativity miss"
+</p>
+
+<p>
+至今，我们仅仅考虑的一个cpu读取一个数据条目（data item）。如果它写操作会发生什么？
+</p>
+
+<p>
+因为所有cpu对给定的值达成一致很重要，它必须在给定cpu 写（write）之前，让它从其他cpu的缓存（cache）被移除（removed）或者"invalidated"。
+一旦这种无效(invalidation)完成，cpu才可以安全的修改数据条目。如果数据条目在这个cpu cache里存在，但是是只读的，这个过程被一个"write miss" 终止（terminate）。
+</p>
+
+<p>
+一旦一个给定的cpu已经从其他cpu cache里完成了一个给定的数据条目的invalidating，那个cpu就可以重复的读（或者写）那个数据条目了。
+</p>
+
+<p>
+  接下来，如果其他cpu试图访问同一个data item，将引起一个cache miss，这次因为第一个cpu 为了写它 invalidated 了这个条目。这种类型的cache miss 被称作“communication miss",
+因为他通常因为几个cpu用数据条目去通信（communicate)(比如，锁就是cpu之间用 mutual-exclusion算法来进行通信的数据条目)。
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3">2. 缓存一致协议(Cache-coherence protocols)</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+CPU 管理cache-line 状态，为了避免不一致或者数据的丢失。这些协议可能很复杂，有几十个状态，但是为了我们的目的我们仅仅关心 four-state MESI cahe-coherence protocol。
+</p>
+</div>
+
+
+<div id="outline-container-sec-3-1" class="outline-3">
+<h3 id="sec-3-1">2.1 MESI States</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+  MESI 代表 "modified","exclusive","shared"，"invalid",修改，互斥，共享，无效。
+Cache在每个缓存行上除了那line的物理地址和数据之外，用这个协议维护了一个2bit的状态标签。
+</p>
+
+<dl class="org-dl">
+<dt> modified </dt><dd>才被所属的cpu进行了修改并且对应的内存被保证不会出现在其他cpu的cache里。意味着
+被当前cpu所拥有。因为当前cache持有仅有的最新数据的拷贝，那么这个cache最终负责写回内存或者把它交给
+其他cache，并且再重用这个line去存放其他数据的时候也必须这样做。
+</dd>
+<dt> exclusive </dt><dd>和modified很类似，唯一不同的是它还没有被对应的cpu进行修改，这反过来意味着cache里的
+数据拷贝是最新的（up to date）。然而，因为当前cpu随时可以存储这个cache line ，而不用询问其他cpu，
+exclusive状态的cache line仍然可以被称作 被当前cpu所拥有。意味着，因为当前内存的数据是最新，这个cache
+可能随时丢弃这个数据而不用写回内存或者把它交给其他cpu。
+</dd>
+<dt> shared </dt><dd>cache line可能被至少一个其他cpu缓存进行了复制(replicated)，所以当前cpu不允许在不经过
+询问其他cpu的情况下去写（store）这个cache line。和exclusive类似，内存数据是最新的，当前cache可以随时
+丢弃数据而不用写回内存或者交给其他cpu去处理。意味着只读？
+</dd>
+<dt> invalid </dt><dd>空，没有数据。新数据进入cache时候，如果可能的话就设置成invalid状态。这个方法是被建议的，因为
+其他几个状态可能引起昂贵的cache miss。
+</dd>
+</dl>
+
+
+<p>
+因为所有cpu必须对cache lines的数据维持一个统一的视图（view），cache-cohenrence protocol 提供了协调cache line在系统里面移动时的消息(messages).
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2">2.2 MESI Protocol Messages</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+上一部分讲到的转变(transitions) 要求cpu之间进行通信(communication).如果cpu们在一个共享总线上,
+下面的消息足够了:
+</p>
+<dl class="org-dl">
+<dt> Read </dt><dd>读消息包含了将要被读取的cache line的物理地址
+</dd>
+
+<dt> Read Response </dt><dd>读回复消息包含了之前读消息请求的数据.这个读消息可能是内存(memory)或者其他缓存
+</dd>
+</dl>
+<p>
+(cache)中的某一个提供的(supplied).
+</p>
+
+<dl class="org-dl">
+<dt> Invalidate </dt><dd>无效消息包含了cache line的物理地址.所有其他cache必须从他们的缓存里移除掉对
+</dd>
+</dl>
+<p>
+应的数据并且进行回应(respond).
+</p>
+
+<dl class="org-dl">
+<dt> Invalidate Acknowledge </dt><dd>一个cpu收到了一个无效(invalidate)消息在从它的缓存里删除了对应的数据后必须要用
+无效确认(invalidate acknowledge)消息进行回应.
+</dd>
+
+<dt> Read Invalidatte </dt><dd>读-无效 消息包含了将要读取的cache line的物理地址,同时指示其他caches移除掉这个数据.因此
+</dd>
+</dl>
+<p>
+它是一个 读(read) 和 无效(invalidate),正像他的名字表明的那样.一个 读-无效 信息要求 一个 读回复 (read response) 和 无效确认
+(invalidate acknowledge)消息作为回应.
+</p>
+
+<dl class="org-dl">
+<dt> Writeback </dt><dd>写回消息包含了将要被写回内存的地址和数据(并且同时也许被窥探(snooped)到其他的cpu的cache).这个消息允许cache弹出
+</dd>
+</dl>
+<p>
+修改状态的行(line),以用来给其他数据腾出地方.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3" class="outline-3">
+<h3 id="sec-3-3">2.3 MESI状态图( MESI  state Diagram)</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+一个给定的cache line的状态随着协议消息被发送和接收时而改变,如下图所示:
+</p>
+
+<p>
+<img src="./img/blog_img/MESI_state_diagram.png" alt="MESI_state_diagram.png" />
+ MESI Cache-cohenrency state diagram
+</p>
+</div>
+
+<div id="outline-container-sec-3-3-1" class="outline-4">
+<h4 id="sec-3-3-1">Transition (a):</h4>
+<div class="outline-text-4" id="text-3-3-1">
+<p>
+一个cache line已经被写回内存了,但是cpu仍然持有它在它的cache里并且接下来将持有修改它的权限.这个转换需要一个写回(write back)消息.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-2" class="outline-4">
+<h4 id="sec-3-3-2">Transition (b):</h4>
+<div class="outline-text-4" id="text-3-3-2">
+<p>
+cpu写它已经互斥访问的cache line.这个转换不需要任何消息的发送和接收.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-3" class="outline-4">
+<h4 id="sec-3-3-3">Transition (c):</h4>
+<div class="outline-text-4" id="text-3-3-3">
+<p>
+cpu收到一个它已经修改了的cache line的 读-无效 (read invalidate)消息.cpu必须把它本地拷贝(copy)无效掉,然后用 一个 读回复(read
+response) 和 一个 无效确认 (invalidate acknowledge)消息来回应,表明它已经没有本地拷贝了.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-4" class="outline-4">
+<h4 id="sec-3-3-4">Transition (d):</h4>
+<div class="outline-text-4" id="text-3-3-4">
+<p>
+cpu对一个不在它cache里的数据条目(data item)做了一个原子 读-修改-写 (atomic read-modify-write)操作.它发送一个 读-无效(read
+invalidate) 消息,通过一个 读回复(read response)收到了数据.cpu一旦收到了所有的(a full set) 无效回复(invalidate acknowledge),
+它就完成了这个转换.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-5" class="outline-4">
+<h4 id="sec-3-3-5">Transition (e):</h4>
+<div class="outline-text-4" id="text-3-3-5">
+<p>
+cpu对一个之前在它cache里的只读(read-only)数据条目做一个原子 读-修改-写(atomic read-modify-write)操作.它必须发送无效
+(invalidate)消息,并且在完成转换之前必须等到所有的(a full set) 无效回复(invalidate acknowledge).
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-6" class="outline-4">
+<h4 id="sec-3-3-6">Transition (f):</h4>
+<div class="outline-text-4" id="text-3-3-6">
+<p>
+某个其他cpu读(也可能写回内存)一个从这个cpu cache里提供的cache line的拷贝(copy).这个转换由一个 读(read)消息发起,然后这个cpu
+用一个包含请求数据的(requested data)读回复(read resposne)作为回复.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-7" class="outline-4">
+<h4 id="sec-3-3-7">Transition (g):</h4>
+<div class="outline-text-4" id="text-3-3-7">
+<p>
+某个其他cpu读这个cache line的数据条目,也许它是由这个cpu的cache或者内存提供的.无论那种情况,这个cpu包含的是一个只读拷贝(read-only copy).这个转换由一个 读(read)消息发起,然后这个cpu
+用一个包含请求数据的(requested data)读回复(read resposne)作为回复.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-8" class="outline-4">
+<h4 id="sec-3-3-8">Transition (h):</h4>
+<div class="outline-text-4" id="text-3-3-8">
+<p>
+这个cpu意识到它将很快需要写回一些这个cache里的一些数据条目,因此发送一个 无效 消息(invalidate message).
+这个cpu在收到所有(a full set)的 无效确认(invalidate acknowledge)消息之前不能完成这个转换.
+或者,所有其他cpu通过(via) 写回(writeback)消息 从他们的cache里弹出(eject)这个cache line( 很可能presumably为其他缓存行腾
+空间),这样,这个cpu是最后一个缓存(caching)它的cpu.
+</p>
+</div>
+</div>
+<div id="outline-container-sec-3-3-9" class="outline-4">
+<h4 id="sec-3-3-9">Transition (i):</h4>
+<div class="outline-text-4" id="text-3-3-9">
+<p>
+某个其他cpu对一个仅(only)被当前cpu cache持有(held)的数据做了一个 原子 读-修改-写(atomic read-modify-write)操作,因此这个cpu需要
+把它从它的cache里无效掉(invalidate).这个转换由一个 读-无效(read invalidate)消息开始,然后这个cpu用一个读回复(read resposne)
+和一个 无效确认(invalidate acknowledge)作为回复.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-10" class="outline-4">
+<h4 id="sec-3-3-10">Transition (j):</h4>
+<div class="outline-text-4" id="text-3-3-10">
+<p>
+这个cpu对不在它cache里的cache line的数据条目做了一个存储操作,因此发送一个 读-无效 (read invalidate)消息.
+这个cpu在收到 对应的读回复(read response) 和所有的 无效确认(invalidate acknowledge)消息时才能完成转换.
+只要实际写(store)一旦完成,缓存行强很可能( presumably )转换到 修改状态(modified state).
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3-11" class="outline-4">
+<h4 id="sec-3-3-11">Transition (k):</h4>
+<div class="outline-text-4" id="text-3-3-11">
+<p>
+这个cpu对不在它cache里的cache line的数据条目做了一个读操作(load).这个cpu发送一个读消息(read message),然后在收到对应的
+read response 后完成这个转换.
+</p>
+</div>
+</div>
+<div id="outline-container-sec-3-3-12" class="outline-4">
+<h4 id="sec-3-3-12">Transition (l):</h4>
+<div class="outline-text-4" id="text-3-3-12">
+<p>
+某个其他cpu对一个存在于这个cache line的数据条目做了一个存储操作,(这个缓存是只读(read-only)因为它同时也被其他cpu cache 持有
+(held)).这个转换由一个 无效(invalidate)消息开始,然后这个cpu用一个读回复(read resposne)
+和一个 无效确认(invalidate acknowledge)作为回复.
+</p>
+</div>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-3-4" class="outline-3">
+<h3 id="sec-3-4">2.4 MESI 协议的例子(MESI Protocol Example)</h3>
+<div class="outline-text-3" id="text-3-4">
+<pre class="example">
+|          |         |                   |        cpu cache          |   memory         |
+| sequence |  cpu    |   operation       |  0      1      2      3   |   0       8      |
+|----------+---------+-------------------+------+-----o+-----o+------+-------+----------+----
+|   0      |         |initial state      | -/i  | -/i  | -/i  | -/i  |  v    |   v      |
+|----------+---------+-------------------+------+------+------+------+-------+----------+-----
+|   1      |   0     | load              | 0/s  | -/i  | -/i  | -/i  |  v    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+------
+|   2      |   3     | load              | 0/s  | -/i  | -/i  | 0/s  |  v    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+------
+|   3      |   0     | invalidation      | 8/s  | -/i  | -/i  | 0/s  |  v    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+------
+|   4      |   2     | RMW               | 8/s  | -/i  | 0/e  | -/i  |  v    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+-----
+|   5      |   2     | store             | 8/s  | -/i  | 0/m  | -/i  |  i    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+------
+|   6      |   1     | atomic inc        | 8/s  | 0/m  | -/i  | -/i  |  i    |   v      |
++----------+---------+-------------------+------+------+------+------+-------+----------+------
+|   7      |   1     | writeback         | 8/s  | 8/s  | -/i  | -/i  |  v    |   v      |
+|          |         |                   |      |      |      |      |       |          |
+
+
+
+让我们从缓存行数据的角度来观察,最开始在内存地址0,然后它在有4个cpu的系统的多个单行直接映射的缓存里流动(travel).
+如上表,第一列是序号,第二列是执行操作的cpu,第三列是执行的操作,接下来的四列是每个cpu的cache line的状态(MESI状态).
+接下来的两列是是是否对应的内存内容是最新的(v)或不是最新的(I).
+  最开始,数据所存在于的cpu的cache lines是 无效(invalidate)状态,并且数据在内存里,是有效的.
+  cpu 0加载地址0的数据时,cpu 0的cache进入shared 状态,并且内存里仍然是有效的(valid).
+  cpu 3也加载地址0的数据,因此两个都是 shared 状态.内存仍然有效.
+  cpu 0加载地址8的cache line,这样就让地址0从它的cache里无效了,用地址8的新数据替换.
+  cpu 2现在从地址0加载数据,但是它意识到接下来他要进行写(store)操作,因此它使用了 读-无效(read invalidate),来获得一份
+exclusive 拷贝,并让它从cpu 3的cache里无效(尽管内存里的拷贝仍然是最新的).
+  cpu 2执行它的写(store),把状态改成了已修改(modified)状态.内存0的数据是过时的了.
+  cpu 1执行了一个原子增加操作,用 读无效(read invalidate)从cpu 2缓存窥探到数据,并让cpu 2的cache 无效,这样cpu 1的cache是
+修改状态(modified)(内存的拷贝仍然是过时的).
+  cpu 1读地址8的cache line,用了 写回(writeback)消息,把地址0的数据写回到内存.
+</pre>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4">3 不必要的延迟情况下存储结果</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+  尽管缓存(cache)对给定cpu对给定数据的重复读(read)和写(write)提供了好的性能,但是第一次写某个给定的cache line却很糟糕.
+下图展示了cpu 0写一个cpu 1的cache的时间线.因为cpu 0 在它能够写之前必须等待cache line的到达,cpu 0必须停滞一段时间.
+</p>
+
+<pre class="example">
+    cpu 0                                cpu 1
+
+  write|                                   |
+  ---- +-----                              |
+   |   |     \-------- invalidate          |
+   |   |              \-------             |
+   |   |                      \--------    |
+       |                               \-&gt; +
+stall  |                               ----+
+   |   |         acknowledgemen-------/    |
+   |   |               -------/            |
+   |   |       -------/                    |
+  ---- |  &lt;---/                            |
+</pre>
+
+<p>
+但是并没有理由强制让cpu 0 停滞这么久 &#x2013; 毕竟,不管cpu 1发送过来的cache line里是什么数据,cpu 0都将无条件的覆盖(overwrite)它.
+</p>
+</div>
+
+
+<div id="outline-container-sec-4-1" class="outline-3">
+<h3 id="sec-4-1">3.1 Store Buffers(存储缓冲&#x2013;把写(store)指令放到缓冲里,cpu继续执行)</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+  一个避免写操作的没有必要的等待的方式是在每个cpu 和 它的cache之间增加了 存储缓冲(store buffer)。
+cpu 0 能够简单的把写操作存在storebuffer里，然后继续执行。
+等到最终cache line从cpu 1 到达 cpu 0 的时候，数据就从store buffer写到cpu0的cache line。
+</p>
+
+<pre class="example">
++---------+     +----------+
+|  cpu0   |     |   cpu1   |
++-+-+--+--+     +--+--+---++
+  |  +-+----------+ |    +-+----------+
+  |  |storebuffer | |    |storebuffer |
+  |  +-+---------+  |    +-+----------+
++---+--+--+     +--+--+---++
+|  Cache  |     |  Cache   |
++---+-----+     +------+---+
+    |                  |
+    +--interconnect----+
+       +------+------+
+       |   memory    |
+       +-------------+
+</pre>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-4-2" class="outline-3">
+<h3 id="sec-4-2">3.2 Store缓冲提前打望?(Store Forwarding)</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+变量a b都初始化为0，并且cpu1的缓存行包含a，cpu0缓存行包含b。
+</p>
+<pre class="example">
+  a = 1;     
+  b = a + 1; 
+  assert(b==2);
+
+   首先都完成初始化    a=0,b=0
+
+       cpu 0(cache包含b)                 cpu 1(cache包含a)
+
++----------------------------------+---------------+
+| 执行a=1                           |               |
++----------------------------------+---------------+
+| 在缓存查找a，发现a不在缓存里         |               |
++----------------------------------+---------------+
+|  发送read invalidate message，    |               |
+|为了获得包含a的cacheline的互斥所有权  |               |
++----------------------------------+---------------+
+| 把对a的存储(store,把a设置为1)       |               |
+|纪录(record)到它的store buffer      |               |
++----------------------------------+-------------------------------------+
+|                                  |收到 read invalidate消息，然后把       |
+|                                  |cache line转移，从自己缓存行移除a作为回应|
++----------------------------------+-------------------------------------+
+|执行b=a+1                          |               |
++----------------------------------+---------------+
+|收到cpu1里的a的缓存行，里面仍然是a=0  |               |    &lt; ------这时出现了2份a，一个是store buffer，一个是cache
++----------------------------------+---------------+
+|**从缓存里读出a的值，值是0           |               |    &lt; ------读取cache里的a，而store buffer里的a还存在
++-----------------------------------+---------------+
+|应用store buffer里的写操作，针对     |               |
+|新到的cache line里的a，设置为1       |               |
++-----------------------------------+---------------+
+|把b(1) 加到第8步里读到的a(0)上并含    |               |
+|存到包b的缓存行上，b这时候为1          |               |
++-----------------------------------+---------------+
+|执行assert(b==2),失败               |               |
++-----------------------------------+---------------+
+</pre>
+
+<p>
+问题出现在我们又2份a的拷贝，一个在cache，一个在store buffer。
+这个例子破坏了一个重要的保证：每个cpu必须总是看到它的操作和程序的顺序一致。
+</p>
+
+<p>
+这个保证对于软件设计师有着强烈的反直觉,以至于硬件设计师出于怜悯
+而实现了 store forwarding,每个cpu当执行读（load)操作时同时参考或者（监视）它的store buffer 和 cache
+换句话说，一个cpu的写（stores)操作先于(forwarded)于它的后来的(subsequent)写操作，而不是从cache传值。
+</p>
+
+<p>
+使用 store forwarding ,上面的第8个步骤将发现store buffer里正确的a的值1，所以最终b的值
+将是期望的那样，为2.
+</p>
+
+<p>
+<b>尽管硬件设计师实现了stroe forwarding,但是多线程仍然可能出错,这就需要内存屏障了,如下文</b>
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-4-3" class="outline-3">
+<h3 id="sec-4-3">3.3 Store Buffer 和内存屏障(Store Buffers and Memory Barriers)</h3>
+<div class="outline-text-3" id="text-4-3">
+</div><div id="outline-container-sec-4-3-1" class="outline-4">
+<h4 id="sec-4-3-1">3.3.1 不带内存屏障</h4>
+<div class="outline-text-4" id="text-4-3-1">
+<p>
+为了看看着第二个复杂的，全局内存顺序的破坏(violation),考虑下面的代码，变量a和b都初始化为0：
+</p>
+
+<pre class="example">
+void foo(void)
+{
+ a=1;
+ b=1;
+}
+void bar(void)
+{
+ while(b==0) continue;
+ assert(a==1);
+}
+</pre>
+
+<p>
+假设cpu0 执行foo(),cpu1执行bar().
+假设接下来cpu1的cache包含a，cpu0的cache包含b
+那么接下来的操作可能如下:
+</p>
+
+<pre class="example">
+      cpu 0(cache 包含 b)                    cpu 1(cache 包含 a)
++-------------------------------------+------------------------------+
+| 执行 a=1,缓存行不在cpu0的cache,       |                              |
+| 所以把a的新值放到store buffer，然后发  |                              |
+| 送"read invalidate"消息              |                              |
++-------------------------------------+------------------------------+
+|                                     | 执行 while(b==0) continue,但是|
+|                                     | 包含b的缓存行不在缓存，所以它发送|
+|                                     |一个 read message             |
++-------------------------------------+------------------------------+
+| 执行b=1,因为已经有了b的缓存行          |                              |
+|  (换句话说，缓存行是 modified)        |                              |
+|或者 exclusive 状态),所以它存储b的     |                              |
+|新值到缓存行，b=1                     |                              |
++-------------------------------------+------------------------------+
+| 收到 read 消息，并且传输包含了已经更    |                              |
+| 新的b(b=1)的值到cpu 1,并且设置缓存行   |                              |
+| 状态为 shared状态                    |                              |
++-------------------------------------+------------------------------+
+|                                     | 收到包含b的缓存行并且存到它自己  |
+|                                     | 的cache                       |
++-------------------------------------+------------------------------+
+|                                     | 现在可以结束执行while(b==0) continue |
+|                                     | 因为它发现b的值是1，它准备执行下一个语句 |
++-------------------------------------+--------------------------------+
+|                                     |** 执行assert(a==1),因为他正在使用 | &lt; ---根本原因在于其他cpu对存在于本cpu cache里数据的store操作，
+|                                     |a的旧值，这个断言失败了             |   放到了其他cpu的store buffer，其他cpu然后发出的read invalidate ,但消息没有及时送达
++-------------------------------------+---------------------------------+   ，因此修改并没有对当前cpu感知到，仍然使用了本地cache的旧值！
+|                                     | ** 收到 read invalidate 消息,    |
+|                                     | 然后把包含a的缓存行传输给cpu 0,并且|
+|                                     | 把本地包含a的cache line  清空     |
+|                                     | (invalidate)掉,但是这已经太晚了   |
++-------------------------------------+---------------------------------+
+| 收到包含a的缓存行然后应用到缓存的       |                                 |
+| store操作上,刚好赶上cpu 1的失败断言    |                                 |
++------------------------------+----------------------------------------+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-4-3-2" class="outline-4">
+<h4 id="sec-4-3-2">3.3.2 带内存屏障</h4>
+<div class="outline-text-4" id="text-4-3-2">
+<p>
+硬件设计者没办法。因为cpu没办法知道哪个变量是受影响的，更不用说哪个变量可能受影响。更进一步，他们提供了
+memory barrier 指令，让软件告诉cpu这些关系。程序片段必须修改成包含 memory barrier:
+</p>
+
+<pre class="example">
+void foo(void)
+{
+ a=1;
+ smp_mb();
+ b=1;
+}
+void bar(void)
+{
+ while(b==0) continue;
+ assert(a==1);
+}
+</pre>
+
+<p>
+smp<sub>bm</sub>()让cpu在应用接下来的store操作之前先flush它的store buffer。cpu可能在处理之前简单的等待直到store buffer为空,
+或者它可以使用store buffer持有接下来的store操作直到store buffer里所有之前的操作都被应用(applied).
+  用后面的方法,操作的序列可能如下:
+</p>
+
+<pre class="example">
+  cpu 0(cache 包含 b)             cpu 1(cache 包含 a)
++-------------------------------------+------------------------------+
+| 执行 a=1,缓存行不在cpu0的cache,       |                              |
+| 所以把a的新值放到store buffer，然后发  |                              |
+| 送"read invalidate"消息              |                              |
++-------------------------------------+------------------------------+
+|                                     | 执行 while(b==0) continue,但是|
+|                                     | 包含b的缓存行不在缓存，所以它发送|
+|                                     |一个 read message             |
++-------------------------------------+------------------------------+
+| 执行smp_mb(),标记(mark)所有当前       |                              |
+|store buffer里的条目                  |                              |
+|                                     |                              |
++-------------------------------------+------------------------------+
+| 执行b=1,因为已经有了b的缓存行          |                              |
+|  (换句话说，缓存行是 modified)        |                              |
+|或者 exclusive 状态),[**所以如果按照上一步 |                           |
+|没加memory barrier之前的操作的话,它将存 |                              |
+|储b的新值到缓存行，b=1**],但是在store   |                              |
+|buffer 里有 标记(marked)条目,因此它并不 |                              |
+|存储b的新值1到cache,而是把它也放到store |                              |
+|buffer(但是是未标记(unmarked) 条目)    |                              |
++-------------------------------------+------------------------------+
+| 收到 read 消息，并且传输包含b原始值的   |                              |
+| cache line 给cpu 1.同时标记它本地这   |                              |
+| 个cache line 的状态为 shared状态       |                              |
++-------------------------------------+------------------------------+
+|                                     | 收到包含b的缓存行并且存到它自己  |
+|                                     | 的cache                       |
++-------------------------------------+------------------------------+
+|                                     | 现在本可以结束执行while(b==0) continue |
+|                                     | 因为它发现b的值仍然是0,它重复while statement|
+|                                     |** b的新值被安全的隐藏在cpu 0的 store buffer里 |
++-------------------------------------+---------------------------------+
+|                                     | ** 收到 read invalidate 消息,    |
+|                                     | 然后把包含a的缓存行传输给cpu 0,并且 |
+|                                     | 把本地包含a的cache line 清空      |
+|                                     |                                 |
++-------------------------------------+---------------------------------+
+| 收到包含a的缓存行然后应用到缓存的store操|                                 |
+| 作上,把这行cache line 改成 modified   |                                 |
++------------------------------+----------------------------------------+
+|因为对a的store是store buffer里唯一被   |                                 |
+|smp_mb()标记的条目,cpu 0同时也能store  |                                 |
+|b 的新值(除非包含b的cache line现在     |                                 |
+|是shared状态)                         |                                 |
++-------------------------------------+---------------------------------+
+|cpu 0因此发送invalidate 消息给cpu1     |                                 |
++-------------------------------------+---------------------------------+
+|                                     |cpu 1收到invalidate 消息,把包含b的 |
+|                                     |cache line从cache清空(invalidate) |
+|                                     |然后发送"acknowledgement给cpu0    |
++-------------------------------------+---------------------------------+
+|                                     |执行while(b==0)continue,但是包含b的|
+|                                     |cacheline不在的cache里,因此它发送  |
+|                                     |read message 给cpu 0             |
++-------------------------------------+---------------------------------+
+|收到"acknowledgement"消息,并且把包含b的|                                 |
+|cache line改成"exclusive"状态.cpu 0 现|                                 |
+|在存储b的新值到cache line              |                                 |
++-------------------------------------+---------------------------------+
+|收到read 消息然后把包含b的新值的cache   |                                 |
+|line 传输给cpu 1.同时把本地缓存行的拷贝 |                                 |
+|设置为"shared"状态                    |                                 |
++-------------------------------------+---------------------------------+
+|                                     |收到包含b的缓存行并且存到它自己的cache|
++-------------------------------------+-----------------------------------+
+|                                     |现在可以结束执行while(b==0) continue |
+|                                     |并且发现b的值是1,它执行下一个statement|
++-------------------------------------+------------------------------------+
+|                                     |执行assert(a==1),但是包含a的cache     |
+|                                     |line不在它的cache里.一旦它从cpu 0获得  |
+|                                     |了这个cache,它将使用的是最新的a的值,因此|
+|                                     |断言通过                             |
++-------------------------------------+------------------------------------+
+</pre>
+</div>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-5" class="outline-2">
+<h2 id="sec-5">4 存储序列导致了不必要的停顿(Store Sequences Result in Unnecessary Stalls)</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+  不幸的是,每个store buffer 必须相对很小,这意味着cpu 执行很少的store操作序列都会
+填满它的store buffer(比如,如果所有的都缓存不命中(cache miss)).
+这样看来cpu必须再一次等待invalidation按顺序结束,从它的store buffer 流出,才能继续执行下去.
+这种情况能够在一个内存屏障之后很快出现,如果所有接下来(subsequent)的store 指令都必须等待
+invalidation结束,而不考虑这些store是否引起cache miss的话.
+</p>
+
+<p>
+  这种情况能够改善,如果能让invalidate acknowledge 消息更快的到达的话.一个这样坐的方式就是
+每个cpu都使用 无效消息队列( invalidate message queue,or "invalidate queues")
+</p>
+</div>
+
+
+<div id="outline-container-sec-5-1" class="outline-3">
+<h3 id="sec-5-1">4.1 Invalidate Queues</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+  invalidate message花太长时间的一个原因是他们必须确认对应的cache line真的变成了invalidated,
+并且这个invalidation可能被延迟,如果缓存正忙,比如说,如果cpu 正密集的读(loading) 和 写(storing)
+数据,而这些数据都存在于cache里.此外,如果大量的invalidate message在短时间到达,该cpu可能来不及处理
+它们,因此可能导致所有其他cpu延迟(stalling)
+  然而,cpu在发送acknowledgement之前不需要真的invalidate 对应的cache line.它可能取而代之的是把
+invalidate message 放到 queue里,如果它明确知道在针对对应的cache line发送更多的messages之前,这个
+message必须被处理(processed).
+</p>
+
+
+<pre class="example">
++---------+     +----------+
+|  cpu0   |     |   cpu1   |
++-+-+--+--+     +--+--+---++
+  |  +-+----------+ |    +-+----------+
+  |  |storebuffer | |    |storebuffer |
+  |  +-+---------+  |    +-+----------+
++---+--+--+     +--+--+---++
+|  Cache  |     |  Cache   |
++---+-----+     +------+---+
+    |                  |
++---------+     +----------+
+|invalidate|    |invalidate|
+|queue     |    |queue     |
++---------+     +----------+
+    +--interconnect----+
+       +------+------+
+       |   memory    |
+       +-------------+
+</pre>
+<p>
+<b>带无效队列的缓存(caches with invalidate queues)</b>
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5-2" class="outline-3">
+<h3 id="sec-5-2">4.2 Invalidate Queues and Invalidate Acknowledge</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+  带invalidate queues 的cpu可以在一个invalidate message一到达queue就发送acknowledgement,
+而不用等待一直到对应的cache line真正的被invalidated.当然,cpu在准备发送invalidation message的
+时候必须参考(refer)它的invalidate queue &#x2013; 如果对应的cache line 在invalidate queue里,那么cpu
+不能立刻发送(transmit)invalidate message;它必须等待直到对应的条目被处理为止.
+  放条目到invalidate queue是cpu处理对应的cache line条目并发送MESI protocol message之前的重要保证.只要对应的数据结构不是高度contented,cpu 很少被这个保证造成不便(inconvenienced).
+  无论如何,能够被放到invalidate queue里的invalidate messages为memory-misording提供了更多的
+机会,正如下面的讨论.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-5-3" class="outline-3">
+<h3 id="sec-5-3">4.3 无效队列和内存屏障 Invalidate Queues and Memory Barriers</h3>
+<div class="outline-text-3" id="text-5-3">
+<p>
+让我们假设cpu把invalidation 请求放到队列,立刻回应(response)它们.这个方法最小化了进行写(store)操作的cpu的cache-invalidation延迟,但是可能会破坏memory barrier,下面例子会看到.
+</p>
+
+<p>
+ 假设a 和 b初始化为0，
+a是只读（MESI "shared" 状态）,
+b被 cpu 0持有（MESI "exclusive" or "modified"),
+然后假设 cpu 0执行 foo(), cpu 1执行 bar():
+</p>
+<pre class="example">
+void foo(void)
+{
+ a=1;
+ smp_mb();
+ b=1;
+}
+void bar(void)
+{
+ while(b==0) continue;
+ assert(a==1);
+}
+</pre>
+
+
+<p>
+操作的序列可能如下(带invalidate queue 能够导致memory barrier失效):
+</p>
+
+
+<pre class="example">
+        cpu 0(cache 包含 b)                         cpu 1
++-------------------------------------+------------------------------+
+| 执行 a=1,对应的cache line在cpu0的cache|                              |
+|是只读的,所以cpu0把a的新值放到它的store |                               |
+|buffer 然后发送一个invalidate message, |                              |
+|目的是让对应的cache line从cpu 1 里无效  |                              |
++-------------------------------------+------------------------------+
+|                                     | 执行 while(b==0) continue,但是|
+|                                     | 包含b的缓存行不在缓存，所以它发送|
+|                                     |一个 read message             |
++-------------------------------------+------------------------------+
+|                                     |收到cpu0的invalidate message,把|
+|                                     |它存到队列里然后立刻回复(response)|
+|                                     |它                             |
++-------------------------------------+------------------------------+
+|cpu 0收到cpu1的回复(response),所以它可以|                              |
+|自由的处理过smp_mb(),把a的值从它的store |                              |
+|buffer移动到它的cache line            |                              |
++-------------------------------------+------------------------------+
+| 执行b=1,因为已经有了b的缓存行          |                              |
+|  (换句话说，缓存行是 modified)         |                              |
+|或者 exclusive 状态),所以它直接存储b的新 |                              |
+|值到cache line                        |                              |
++-------------------------------------+------------------------------+
+|收到 read 消息，并且传输包含已经更新b的值 |                              |
+|的 cache line 给cpu 1.同时标记它本地这  |                              |
+| 个cache line 的状态为 shared状态       |                              |
++-------------------------------------+------------------------------+
+|                                     | 收到包含b的缓存行并且存到它自己  |
+|                                     | 的cache                       |
++-------------------------------------+------------------------------+
+|                                     | 现在可以结束执行while(b==0)continue|
+|                                     | 因为它发现b的值是1,它继续执行下个语句|
++-------------------------------------+---------------------------------+
+|                                     |执行assert(a==1),并且,因为a的旧值  |&lt; --已经收到了a的invalidate message,
+|                                     |仍然在cpu 1的cache,这个断言失败    |   还能继续读cache?而不重新read?
++-------------------------------------+--------------------------------+   当然不能.需要用内存屏障强制invalidate queue里的
+                                                                           数据都被invalidate掉.接下来的读出的是最新值,才能得到正确值.
+</pre>
+
+
+<p>
+  很清楚,加速invalidation response这样做会引起memory barrier 被忽略(ignored),那么这样做没什么意义.然而,
+内存屏障指令可以和invalidate queue 无效队列交互,这样当给定的cpu执行一个memory barrier时,它标记所有在它invalidate queue
+里的条目,强制任何接下来的读(load)一直等待,知道所有标记条目被应用到cpu缓存(applyed to cpu cache).因此我们添加一个memory
+barrier 给函数bar,如下:
+</p>
+
+<pre class="example">
+void foo(void)
+{
+ a=1;
+ smp_mb();
+ b=1;
+}
+void bar(void)
+{
+ while(b==0) continue;
+ smp_mb();
+ assert(a==1);
+}
+</pre>
+
+<p>
+操作的序列可能如下(带invalidate queue的,需要添加两个memory barrier来保证正确):
+</p>
+
+<p>
+{
+ 假设a 和 b初始化为0，
+ a是只读（MESI "shared" 状态）,
+ b被 cpu 0持有（MESI "exclusive" or "modified"),
+ 然后假设 cpu 0执行 foo(), cpu 1执行 bar()
+}
+</p>
+<pre class="example">
+        cpu 0(cache 包含 b)                         cpu 1
++-------------------------------------+------------------------------+
+| 执行 a=1,对应的cache line在cpu0的cache|                              |
+|是只读的,所以cpu0把a的新值放到它的store |                               |
+|buffer 然后发送一个invalidate message, |                              |
+|目的是让对应的cache line从cpu 1 里无效  |                              |
++-------------------------------------+------------------------------+
+|                                     | 执行 while(b==0) continue,但是|
+|                                     | 包含b的缓存行不在缓存，所以它发送|
+|                                     |一个 read message             |
++-------------------------------------+------------------------------+
+|                                     |收到cpu0的invalidate message,把|
+|                                     |它存到队列里然后立刻回复(response)|
+|                                     |它                             |
++-------------------------------------+------------------------------+
+|cpu 0收到cpu1的回复(response),所以它可以|                              |
+|自由的经过smp_mb(),把a的值从它的store   |                              |
+|buffer移动到它的cache line            |                              |
++-------------------------------------+------------------------------+
+| 执行b=1,因为已经有了b的缓存行          |                              |
+|  (换句话说，缓存行是 modified)         |                              |
+|或者 exclusive 状态),所以它直接存储b的新 |                              |
+|值到cache line                        |                              |
++-------------------------------------+------------------------------+
+|收到 read 消息，并且传输包含已经更新b的值 |                              |
+|的 cache line 给cpu 1.同时标记它本地这  |                              |
+| 个cache line 的状态为 shared状态       |                              |
++-------------------------------------+------------------------------+
+|                                     | 收到包含b的缓存行并且存到它自己  |
+|                                     | 的cache                       |
++-------------------------------------+------------------------------+
+|                                     | 现在可以结束执行while(b==0)continue| &lt;-- 相对上面是新增的过程
+|                                     | 因为它发现b的值是1,它继续执行下个语句|
+|                                     | 现在是个memory barrier           |
++-------------------------------------+---------------------------------+
+|                                     |cpu1 现在必须停顿,直到它处理完invalidate|
+|                                     |queue里的所有messages              |
++-------------------------------------+---------------------------------+
+|                                     |cpu 1 现在处理放到队列里的invalidate|
+|                                     |message并且把它cache里的包含a的cache|
+|                                     | line 无效掉(invalidates)         |
++-------------------------------------+---------------------------------+
+|                                     |执行assert(a==1),因为包含a的cache |
+|                                     |line 已经不在cache里,它发送一个read message|
++-------------------------------------+--------------------------------+
+|cpu0回应这个read消息,用包含a的新值的cache|                               |
+|line 作为回应                          |                               |
++-------------------------------------+--------------------------------+
+|                                     |cpu1收到cache line,它包含了a的值1 |
+|                                     |所以断言没有被触发                |
++-------------------------------------+--------------------------------+
+</pre>
+
+<p>
+用了很多的MESI消息传递,cpu终于得到了正确的答案.这表明cpu设计者必须对内存一致优化十分小心.
+</p>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-6" class="outline-2">
+<h2 id="sec-6">5. 读和写内存屏障( Read  and  Write  Memory Barriers)</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+上一部分,memory barrier 用来标记 store buffer 和 invalidate queue.但实际上在我们的代码片段里,foo()和
+invalidate queue什么关系都没有,bar()类似的,和store buffer也没什么关系.
+  因此许多cpu架构提供了更弱一点的 memory barrier指令,仅和某个或两个都有关系.简单讲,"read memory barrier"仅仅标记了
+invalidate queue,"write memory barrier" 仅仅标记了store buffer.而 一个full-fledged memory barrier两个都标记.
+  这样的效果是一个读内存屏障(read memory barrier)仅仅和执行它的cpu上的读(load)操作有顺序关系,这样所有在读内存屏障(read memory barrier)之前所有的读必须在读内存屏障之后的任何读之前先完成.类似的,一个写(write)内存屏障仅仅和执行它的cpu上的写(store)操作有顺序
+关系,并且所有写内存屏障(write memory barrier)之前的写操作必须在写内存屏障之后的写(store)之前完成.一个满(full-fledged)memory
+barrier和读和写都有顺序关系,当然仅限于执行内存屏障的cpu上面.
+</p>
+
+<p>
+如果我们更新foo 和 bar用读和写屏障,他们像下面这样:
+</p>
+<pre class="example">
+void foo(void)
+{
+ a=1;
+ smp_wmb();
+ b=1;
+}
+void bar(void)
+{
+ while(b==0) continue;
+ smp_rmb();
+ assert(a==1);
+}
+</pre>
+
+<p>
+有些电脑有更多种类(flavors)的内存屏障,但是理解这三个变体基本上给内存屏障提供一个好的介绍.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-7" class="outline-2">
+<h2 id="sec-7">6 内存屏障序列的例子</h2>
+<div class="outline-text-2" id="text-7">
+<p>
+seductive(诱人,迷人的)
+subtly(狡猾,精巧,微妙)
+hostile(敌意的；敌对的；坚决否定；强烈反对)
+perceive(认为；意识到；注意到；察觉到)
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: robin</p>
+<p class="date">Created: 2016-04-22 Fri 01:02</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
