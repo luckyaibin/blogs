@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>lockfreequeue</title>
-<!-- 2016-04-20 Wed 11:34 -->
+<!-- 2016-04-26 Tue 16:59 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="robin" />
@@ -149,7 +149,7 @@ for the JavaScript code in this tag.
 </li>
 <li><a href="#sec-2">ABA问题</a>
 <ul>
-<li><a href="#sec-2-1">什么事ABA问题</a></li>
+<li><a href="#sec-2-1">什么是ABA问题</a></li>
 <li><a href="#sec-2-2">我们的ringbuffer实现的lockfree queue会产生ABA问题吗？</a></li>
 </ul>
 </li>
@@ -159,6 +159,7 @@ for the JavaScript code in this tag.
 <ul>
 <li><a href="#sec-5-1">CAS代码（win）</a></li>
 <li><a href="#sec-5-2">lockfree queue 代码</a></li>
+<li><a href="#sec-5-3">解决ABA问题的 lockfree queue 代码</a></li>
 </ul>
 </li>
 <li><a href="#sec-6">cache treshing（内存颠簸）</a></li>
@@ -186,7 +187,7 @@ for the JavaScript code in this tag.
 <h2 id="sec-2">ABA问题</h2>
 <div class="outline-text-2" id="text-2">
 </div><div id="outline-container-sec-2-1" class="outline-3">
-<h3 id="sec-2-1">什么事ABA问题</h3>
+<h3 id="sec-2-1">什么是ABA问题</h3>
 <div class="outline-text-3" id="text-2-1">
 <ul class="org-ul">
 <li>有一个线程共享变量v
@@ -270,10 +271,87 @@ head 是第一个可写位置，tail 是第一个可读位置
 <h2 id="sec-3">memory barrier</h2>
 <div class="outline-text-2" id="text-3">
 <p>
-*关于lockfree queue*我这个代码，暂时没想清楚到底 memory barrier 是否应该加，以及加在哪里
+  *关于lockfree queue*我这个代码，暂时没想清楚到底 memory barrier 是否应该加，以及加在哪里
+唯一涉及到顺序的是判空和判满的时候,可能会出现误判,但是不会影响逻辑(比如push判满时,其实没有满,但是却
+返回了满,不能插入,不会影响逻辑)
 </p>
+
+<p>
+下面文章有点启发:
+<a href="http://stackoverflow.com/questions/1787450/how-do-i-understand-read-memory-barriers-and-volatile/1787503#1787503">http://stackoverflow.com/questions/1787450/how-do-i-understand-read-memory-barriers-and-volatile/1787503#1787503</a>
+</p>
+<pre class="example">
+There are read barriers and write barriers; acquire barriers and release barriers. And more (io vs memory, etc).
+
+The barriers are not there to control "latest" value or "freshness" of the values. They are there to control the relative ordering of memory accesses.
+
+Write barriers control the order of writes. Because writes to memory are slow (compared to the speed of the CPU), there is usually a write-request queue where writes are posted before they 'really happen'. Although they are queued in order, while inside the queue the writes may be reordered. (So maybe 'queue' isn't the best name...) Unless you use write barriers to prevent the reordering.
+
+Read barriers control the order of reads. Because of speculative execution (CPU looks ahead and loads from memory early) and because of the existence of the write buffer (the CPU will read a value from the write buffer instead of memory if it is there - ie the CPU thinks it just wrote X = 5, then why read it back, just see that it is still waiting to become 5 in the write buffer) reads may happen out of order.
+
+This is true regardless of what the compiler tries to do with respect to the order of the generated code. ie 'volatile' in C++ won't help here, because it only tells the compiler to output code to re-read the value from "memory", it does NOT tell the CPU how/where to read it from (ie "memory" is many things at the CPU level).
+
+So read/write barriers put up blocks to prevent reordering in the read/write queues (the read isn't usually so much of a queue, but the reordering effects are the same).
+
+What kinds of blocks? - acquire and/or release blocks.
+
+Acquire - eg read-acquire(x) will add the read of x into the read-queue and flush the queue (not really flush the queue, but add a marker saying don't reorder anything before this read, which is as if the queue was flushed). So later (in code order) reads can be reordered, but not before the read of x.
+
+Release - eg write-release(x, 5) will flush (or marker) the queue first, then add the write-request to the write-queue. So earlier writes won't become reordered to happen after x = 5, but note that later writes can be reordered before x = 5.
+
+Note that I paired the read with acquire and write with release because this is typical, but different combinations are possible.
+
+Acquire and Release are considered 'half-barriers' or 'half-fences' because they only stop the reordering from going one way.
+
+A full barrier (or full fence) applies both an acquire and a release - ie no reordering.
+
+Typically for lockfree programming, or C# or java 'volatile', what you want/need is read-acquire and write-release.
+
+ie
+
+void threadA()
+{
+   foo-&gt;x = 10;
+   foo-&gt;y = 11;
+   foo-&gt;z = 12;
+   write_release(foo-&gt;ready, true);
+   bar = 13;
+}
+void threadB()
+{
+   w = some_global;
+   ready = read_acquire(foo-&gt;ready);
+   if (ready)
+   {
+      q = w * foo-&gt;x * foo-&gt;y * foo-&gt;z;
+   }
+   else
+       calculate_pi();
+}
+
+So, first of all, this is a bad way to program threads. Locks would be safer. But just to illustrate barriers...
+
+After threadA() is done writing foo, it needs to write foo-&gt;ready LAST, really last, else other threads might see foo-&gt;ready early and get the wrong values of x/y/z. So we use a write_release on foo-&gt;ready, which, as mentioned above, effectively 'flushes' the write queue (ensuring x,y,z are committed) then adds the ready=true request to the queue. And then adds the bar=13 request. Note that since we just used a release barrier (not a full) bar=13 may get written before ready. But we don't care! ie we are assuming bar is not changing shared data.
+
+Now threadB() needs to know that when we say 'ready' we really mean ready. So we do a read_acquire(foo-&gt;ready). This read is added to the read queue, THEN the queue is flushed. Note that w = some_global may also still be in the queue. So foo-&gt;ready may be read before some_global. But again, we don't care, as it is not part of the important data that we are being so careful about. What we do care about is foo-&gt;x/y/z. So they are added to the read queue after the acquire flush/marker, guaranteeing that they are read only after reading foo-&gt;ready.
+
+Note also, that this is typically the exact same barriers used for locking and unlocking a mutex/CriticalSection/etc. (ie acquire on lock(), release on unlock() ).
+
+So,
+
+    I'm pretty sure this (ie acquire/release) is exactly what MS docs say happens for read/writes of 'volatile' variables in C# (and optionally for MS C++, but this is non-standard). See http://msdn.microsoft.com/en-us/library/aa645755(VS.71).aspx including "A volatile read has "acquire semantics"; that is, it is guaranteed to occur prior to any references to memory that occur after it..."
+
+    I think java is the same, although I'm not as familiar. I suspect it is exactly the same, because you just don't typically need more guarantees than read-acquire/write-release.
+
+    In your question you were on the right track when thinking that it is really all about relative order - you just had the orderings backwards (ie "the values that are read are at least as up-to-date as the reads before the barrier? " - no, reads before the barrier are unimportant, its reads AFTER the barrier that are guaranteed to be AFTER, vice versa for writes).
+
+    And please note, as mentioned, reordering happens on both reads and writes, so only using a barrier on one thread and not the other WILL NOT WORK. ie a write-release isn't enough without the read-acquire. ie even if you write it in the right order, it could be read in the wrong order if you didn't use the read barriers to go with the write barriers.
+
+    And lastly, note that lock-free programming and CPU memory architectures can be actually much more complicated than that, but sticking with acquire/release will get you pretty far.
+</pre>
 </div>
 </div>
+
 
 <div id="outline-container-sec-4" class="outline-2">
 <h2 id="sec-4">ringbuffer</h2>
@@ -323,7 +401,7 @@ head 是第一个可写位置，tail 是第一个可读位置
 </ul>
 <div class="org-src-container">
 
-<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #A6E22E;">      #define</span> <span style="color: #F92672;">RINGBUFFERSZ</span> 8
+<pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #A6E22E;">#define</span> <span style="color: #F92672;">RINGBUFFERSZ</span> 8
 <span class="linenr"> 2: </span><span style="color: #66D9EF;">struct</span> <span style="color: #66D9EF;">ringbuffer</span>
 <span class="linenr"> 3: </span>{
 <span class="linenr"> 4: </span>    <span style="color: #66D9EF;">volatile</span> <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">head</span>;<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">write index</span>
@@ -361,42 +439,40 @@ head 是第一个可写位置，tail 是第一个可读位置
 <pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">push</span>(<span style="color: #66D9EF;">ringbuffer</span>* <span style="color: #F92672;">rb</span>, <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">data</span>)
 <span class="linenr"> 2: </span>{
 <span class="linenr"> 3: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">seq</span>;
-<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">back_door</span>;
-<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
-<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
-<span class="linenr"> 7: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
-<span class="linenr"> 8: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#20889;&#20837;&#30340;&#32034;&#24341;</span>
-<span class="linenr"> 9: </span>    <span style="color: #66D9EF;">do</span> 
-<span class="linenr">10: </span>    {
-<span class="linenr">11: </span>        try_cnt++;
-<span class="linenr">12: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
-<span class="linenr">13: </span>        {
-<span class="linenr">14: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
-<span class="linenr">15: </span>        }
-<span class="linenr">16: </span>        seq = rb-&gt;head;
-<span class="linenr">17: </span>        back_door = rb-&gt;back_door;
-<span class="linenr">18: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz + 1) % sz == back_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check full,&#20889;&#20837;&#19981;&#33021;&#35206;&#30422;&#26410;&#35835;&#21462;&#30340;&#25968;&#25454;</span>
-<span class="linenr">19: </span>            <span style="color: #66D9EF;">return</span> -1;
-<span class="linenr">20: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#28508;&#22312;ABA&#38382;&#39064;&#25152;&#22312;&#65311;&#27492;&#26102;&amp;rb-&gt;head&#34987;&#20854;&#20182;&#32447;&#31243;&#20462;&#25913;&#25104;&#20854;&#20182;&#20540;&#65292;&#28982;&#21518;&#21448;&#20462;&#25913;&#20026;&#21644;seq&#30456;&#31561;&#30340;&#20540;&#65311;</span>
-<span class="linenr">21: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20250;&#20986;&#29616;&#36825;&#20010;&#38382;&#39064;</span>
-<span class="linenr">22: </span>        ok = CAS(&amp;rb-&gt;head, seq, (seq + 1) % sz);
-<span class="linenr">23: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
+<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
+<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
+<span class="linenr"> 7: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#20889;&#20837;&#30340;&#32034;&#24341;</span>
+<span class="linenr"> 8: </span>    <span style="color: #66D9EF;">do</span> 
+<span class="linenr"> 9: </span>    {
+<span class="linenr">10: </span>        try_cnt++;
+<span class="linenr">11: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 1)
+<span class="linenr">12: </span>        {
+<span class="linenr">13: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">14: </span>        }
+<span class="linenr">15: </span>        seq = rb-&gt;head;
+<span class="linenr">16: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz + 1) % sz ==  rb-&gt;back_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check full,&#20889;&#20837;&#19981;&#33021;&#35206;&#30422;&#26410;&#35835;&#21462;&#30340;&#25968;&#25454;</span>
+<span class="linenr">17: </span>            <span style="color: #66D9EF;">return</span> -1;
+<span class="linenr">18: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#28508;&#22312;ABA&#38382;&#39064;&#25152;&#22312;&#65311;&#27492;&#26102;&amp;rb-&gt;head&#34987;&#20854;&#20182;&#32447;&#31243;&#20462;&#25913;&#25104;&#20854;&#20182;&#20540;&#65292;&#28982;&#21518;&#21448;&#20462;&#25913;&#20026;&#21644;seq&#30456;&#31561;&#30340;&#20540;&#65311;</span>
+<span class="linenr">19: </span>        <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20250;&#20986;&#29616;&#36825;&#20010;&#38382;&#39064;</span>
+<span class="linenr">20: </span>        ok = CAS(&amp;rb-&gt;head, seq, (seq + 1) % sz);
+<span class="linenr">21: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
+<span class="linenr">22: </span>
+<span class="linenr">23: </span>    rb-&gt;buf[seq] = data;
 <span class="linenr">24: </span>
-<span class="linenr">25: </span>    rb-&gt;buf[seq] = data;
-<span class="linenr">26: </span>
-<span class="linenr">27: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#22914;&#26524;&#32447;&#31243;T1&#20998;&#37197;&#21040;&#30340;&#24207;&#21495;&#31561;&#20110;front_door,&#37027;&#20040;&#21521;&#21069;&#31227;&#21160;front_door&#65292;&#21542;&#21017;&#35828;&#26126;&#26377;&#20854;&#20182;&#32447;&#31243;T2(&#25110;&#32773;&#36824;&#26377;T3..)&#21516;&#26102;&#22312;push&#65292;&#38656;&#35201;while&#31561;&#21040;T</span>
-<span class="linenr">28: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#21521;&#21069;&#31227;&#21160;front_door&#20043;&#21518;&#25165;&#33021;&#21521;&#21069;&#31227;&#21160;front_door</span>
-<span class="linenr">29: </span>    try_cnt = 0;
-<span class="linenr">30: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;front_door, seq, (seq + 1)%sz))
-<span class="linenr">31: </span>    {
-<span class="linenr">32: </span>        try_cnt++;
-<span class="linenr">33: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
-<span class="linenr">34: </span>        {
-<span class="linenr">35: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
-<span class="linenr">36: </span>        }
-<span class="linenr">37: </span>    }
-<span class="linenr">38: </span>    <span style="color: #66D9EF;">return</span> 0;
-<span class="linenr">39: </span>}
+<span class="linenr">25: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#22914;&#26524;&#32447;&#31243;T1&#20998;&#37197;&#21040;&#30340;&#24207;&#21495;&#31561;&#20110;front_door,&#37027;&#20040;&#21521;&#21069;&#31227;&#21160;front_door&#65292;&#21542;&#21017;&#35828;&#26126;&#26377;&#20854;&#20182;&#32447;&#31243;T2(&#25110;&#32773;&#36824;&#26377;T3..)&#21516;&#26102;&#22312;push&#65292;&#38656;&#35201;while&#31561;&#21040;T</span>
+<span class="linenr">26: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#21521;&#21069;&#31227;&#21160;front_door&#20043;&#21518;&#25165;&#33021;&#21521;&#21069;&#31227;&#21160;front_door</span>
+<span class="linenr">27: </span>    try_cnt = 0;
+<span class="linenr">28: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;front_door, seq, (seq + 1)%sz))
+<span class="linenr">29: </span>    {
+<span class="linenr">30: </span>        try_cnt++;
+<span class="linenr">31: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 1)
+<span class="linenr">32: </span>        {
+<span class="linenr">33: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">34: </span>        }
+<span class="linenr">35: </span>    }
+<span class="linenr">36: </span>    <span style="color: #66D9EF;">return</span> 0;
+<span class="linenr">37: </span>}
 </pre>
 </div>
 <ul class="org-ul">
@@ -407,57 +483,233 @@ head 是第一个可写位置，tail 是第一个可读位置
 
 <pre class="src src-c"><span class="linenr"> 1: </span><span style="color: #66D9EF;">int</span> <span style="color: #F92672; font-style: italic;">pop</span>(<span style="color: #66D9EF;">ringbuffer</span>* <span style="color: #F92672;">rb</span>)
 <span class="linenr"> 2: </span>{
-<span class="linenr"> 3: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">head</span>;
-<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">seq</span>;
-<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">front_door</span>;
-<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
-<span class="linenr"> 7: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
-<span class="linenr"> 8: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
-<span class="linenr"> 9: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#35835;&#21462;&#30340;&#32034;&#24341;</span>
-<span class="linenr">10: </span>    <span style="color: #66D9EF;">do</span> 
-<span class="linenr">11: </span>    {
-<span class="linenr">12: </span>        try_cnt++;
-<span class="linenr">13: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
-<span class="linenr">14: </span>        {
-<span class="linenr">15: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
-<span class="linenr">16: </span>        }
-<span class="linenr">17: </span>        head = rb-&gt;head;
-<span class="linenr">18: </span>        seq = rb-&gt;tail;
-<span class="linenr">19: </span>        front_door = rb-&gt;front_door;
-<span class="linenr">20: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz) % sz == front_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check empty&#65292;&#19981;&#33021;&#35835;&#21462;&#26410;&#20889;&#20837;&#23436;&#25104;&#30340;&#25968;&#25454;</span>
-<span class="linenr">21: </span>        {
-<span class="linenr">22: </span>            <span style="color: #66D9EF;">return</span> -1;
-<span class="linenr">23: </span>        }
-<span class="linenr">24: </span>        ok = CAS(&amp;rb-&gt;tail, seq, (seq + 1) % sz);
-<span class="linenr">25: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
-<span class="linenr">26: </span>
-<span class="linenr">27: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">data</span> = rb-&gt;buf[seq];
-<span class="linenr">28: </span>
-<span class="linenr">29: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#21407;&#29702;&#21644;push&#30340;&#31867;&#20284;</span>
-<span class="linenr">30: </span>    try_cnt = 0;
-<span class="linenr">31: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;back_door,  seq  , (seq+1) % sz))
-<span class="linenr">32: </span>    {
-<span class="linenr">33: </span>        try_cnt++;
-<span class="linenr">34: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 5)
-<span class="linenr">35: </span>        {
-<span class="linenr">36: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
-<span class="linenr">37: </span>        }
-<span class="linenr">38: </span>    }
-<span class="linenr">39: </span>    <span style="color: #66D9EF;">return</span> data;
-<span class="linenr">40: </span>}
+<span class="linenr"> 3: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">seq</span>;
+<span class="linenr"> 4: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">sz</span> = rb-&gt;sz;
+<span class="linenr"> 5: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">ok</span> = 0;
+<span class="linenr"> 6: </span>    <span style="color: #66D9EF;">unsigned</span> <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">try_cnt</span> = 0;
+<span class="linenr"> 7: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#20998;&#37197;&#21807;&#19968;&#21487;&#20197;&#35835;&#21462;&#30340;&#32034;&#24341;</span>
+<span class="linenr"> 8: </span>    <span style="color: #66D9EF;">do</span> 
+<span class="linenr"> 9: </span>    {
+<span class="linenr">10: </span>        try_cnt++;
+<span class="linenr">11: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 1)
+<span class="linenr">12: </span>        {
+<span class="linenr">13: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">14: </span>        }
+<span class="linenr">15: </span>        seq = rb-&gt;tail;
+<span class="linenr">16: </span>        <span style="color: #66D9EF;">if</span> ((seq + sz) % sz == rb-&gt;front_door)<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">check empty&#65292;&#19981;&#33021;&#35835;&#21462;&#26410;&#20889;&#20837;&#23436;&#25104;&#30340;&#25968;&#25454;</span>
+<span class="linenr">17: </span>        {
+<span class="linenr">18: </span>            <span style="color: #66D9EF;">return</span> -1;
+<span class="linenr">19: </span>        }
+<span class="linenr">20: </span>        ok = CAS(&amp;rb-&gt;tail, seq, (seq + 1) % sz);
+<span class="linenr">21: </span>    } <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>ok);
+<span class="linenr">22: </span>
+<span class="linenr">23: </span>    <span style="color: #66D9EF;">int</span> <span style="color: #F92672;">data</span> = rb-&gt;buf[seq];
+<span class="linenr">24: </span>
+<span class="linenr">25: </span>    <span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">commit&#65292;&#21407;&#29702;&#21644;push&#30340;&#31867;&#20284;</span>
+<span class="linenr">26: </span>    try_cnt = 0;
+<span class="linenr">27: </span>    <span style="color: #66D9EF;">while</span> (<span style="font-weight: bold;">!</span>CAS(&amp;rb-&gt;back_door,  seq  , (seq+1) % sz))
+<span class="linenr">28: </span>    {
+<span class="linenr">29: </span>        try_cnt++;
+<span class="linenr">30: </span>        <span style="color: #66D9EF;">if</span> (try_cnt &gt; 1)
+<span class="linenr">31: </span>        {
+<span class="linenr">32: </span>            sleep(0);<span style="color: #465457; font-style: italic;">//</span><span style="color: #465457; font-style: italic;">&#35753;&#32473;&#20854;&#20182;&#32447;&#31243;&#21435;&#25191;&#34892;</span>
+<span class="linenr">33: </span>        }
+<span class="linenr">34: </span>    }
+<span class="linenr">35: </span>    <span style="color: #66D9EF;">return</span> data;
+<span class="linenr">36: </span>}
 </pre>
 </div>
 </div>
 </div>
-</div>
 
+<div id="outline-container-sec-5-3" class="outline-3">
+<h3 id="sec-5-3">解决ABA问题的 lockfree queue 代码</h3>
+<div class="outline-text-3" id="text-5-3">
+<pre class="example">
+#define RINGBUFFERSZ 8
+struct ringbuffer
+{
+	volatile unsigned int head;//write index
+	volatile unsigned int tail;//read index
+
+	volatile unsigned int front_door;
+	volatile unsigned int back_door;
+	unsigned int sz;
+	unsigned int *buf;
+};
+
+
+//计数器CNTR占32bit中的高N位,剩下的就是指针(PNTR)--其实就是索引,占的bits
+#define ABA_CNTR_BITS 8
+ 
+#define ABA_CNTR(uint32) (uint32 &gt;&gt; ((32 - ABA_CNTR_BITS)) &amp; ( (1 &lt;&lt; ABA_CNTR_BITS) - 1))
+#define ABA_PNTR(uint32) ((uint32) &amp; (  (1 &lt;&lt; (32-ABA_CNTR_BITS)) - 1))
+
+#define ABA_COMPOSE(counter,pointer) ( (((counter)&amp;( (1&lt;&lt;ABA_CNTR_BITS)-1)) &lt;&lt; (32 - ABA_CNTR_BITS)) \
+	| ((pointer)&amp; ((1 &lt;&lt; (32 - ABA_CNTR_BITS)) - 1)))
+
+
+/*
+head 是第一个可写位置，tail 是第一个可读位置
+       tail=1                        head=6
++-----+-----+-----+-----+-----+-----+-----+-----+
+|empty| A   |  B  |  C  |  D  |  E  |empty|empty|
++-----+-----+-----+-----+-----+-----+-----+-----+
+   0     1     2     3     4     5     6     7
+
+  如果不限制head和tail，那么当head == tail的时候，无法区分是满还是空
+  所以这里限制满的时候 (head + sz)%sz - 1 == tail，就是说满的时候
+  元素数量等于sz - 1;
+  
+	队列满                head=4 tail=5 
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+  |  H  | A   |  B  |  C  |empty|  E  |  F  |  G  |
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+     0     1     2     3     4     5     6     7
+
+
+  而当(head + sz)%sz  == tail 表示空，最开始head=0，tail=0，也就表示空
+
+  队列空                   head=4 
+                           tail=4
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+  |empty|empty|empty|empty|empty|empty|empty|empty|
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+     0     1     2     3     4     5     6     7
+
+  下面显示了push和pop时候维护的4个有用的元素：
+  head表示当前可以write（push）的索引
+  tail表示当前可以read(pop)的索引
+
+  [front_door,head) 表示当前正在写入的indexes，读操作不能越过front_door( (tail + sz) % sz == front_door ) 
+  [back_foor,tail)  表示当前正在读取的indexes，写操作不能越过back_door ( (head + sz + 1) % sz == back_door )
+  &lt;---------------------- &lt;-------------------------
+  |										          / \
+  |										           |
+  |										           |
+ \ /									           |
+  ... back_door --&gt; tail ... front_door --&gt; head ...
+*/
+ringbuffer * create_ringbuffer(unsigned int bfsz)
+{
+	ringbuffer *rb = (ringbuffer*)malloc(sizeof(ringbuffer));
+	memset(rb, 0, sizeof(*rb));
+	rb-&gt;head = 0;
+	rb-&gt;tail = 0; 
+	rb-&gt;front_door = 0;//最后一个真正可以pop的
+	rb-&gt;back_door =0;//从它之后pop
+	rb-&gt;sz = bfsz;
+	rb-&gt;buf = (unsigned int *)malloc(sizeof(unsigned int)* bfsz);
+	memset(rb-&gt;buf, 0, sizeof(unsigned int)* bfsz);
+
+	return rb;
+}
+
+
+int push_ABA(ringbuffer* rb, int data)
+{
+	unsigned int seq;
+	unsigned int sz = rb-&gt;sz;
+	int ok = 0;
+	unsigned int try_cnt = 0;
+	//分配唯一可以写入的索引
+	do
+	{
+		try_cnt++;
+		if (try_cnt &gt; 1)
+		{
+			sleep(0);//让给其他线程去执行
+		}
+		seq = rb-&gt;head;
+		if ((ABA_PNTR(seq) + sz + 1) % sz == ABA_PNTR(rb-&gt;back_door))//check full,写入不能覆盖未读取的数据
+			return -1;
+		//潜在ABA问题所在？此时&amp;rb-&gt;head被其他线程修改成其他值，然后又修改为和seq相等的值？
+		//会出现这个问题
+		unsigned int cntr = ABA_CNTR(seq);
+		unsigned int pntr = ABA_PNTR(seq);
+		cntr = cntr + 1;
+		pntr = (pntr + 1) % sz;
+		unsigned int seq_new = ABA_COMPOSE(cntr,pntr);
+		ok = CAS(&amp;rb-&gt;head, seq, seq_new);
+	} while (!ok);
+
+	unsigned int idx = ABA_PNTR(seq);
+
+	rb-&gt;buf[idx] = data;
+
+	//commit，如果线程T1分配到的序号等于front_door,那么向前移动front_door，否则说明有其他线程T2(或者还有T3..)同时在push，需要while等到T
+	//向前移动front_door之后才能向前移动front_door
+	try_cnt = 0;
+
+	unsigned int pntr = 0;
+	do
+	{
+		try_cnt++;
+		if (try_cnt &gt; 1)
+		{
+			sleep(0);//让给其他线程去执行
+		}
+		//只需要指针部分,front door 和 back door 不需要计数器
+		pntr = ABA_PNTR(seq);
+	} while (!CAS(&amp;rb-&gt;front_door, pntr, (pntr + 1) % sz));
+	return 0;
+}
+
+
+int pop_ABA(ringbuffer* rb)
+{
+	unsigned int seq;
+	unsigned int sz = rb-&gt;sz;
+	int ok = 0;
+	unsigned int try_cnt = 0;
+	//分配唯一可以读取的索引
+	do
+	{
+		try_cnt++;
+		if (try_cnt &gt; 1)
+		{
+			sleep(0);//让给其他线程去执行
+		}
+		seq = rb-&gt;tail;
+		if ((seq + sz) % sz == rb-&gt;front_door)//check empty，不能读取未写入完成的数据
+		{
+			return -1;
+		}
+		unsigned int cntr = ABA_CNTR(seq);
+		unsigned int pntr = ABA_PNTR(seq);
+		cntr = cntr + 1;
+		pntr = (pntr + 1) % sz;
+		unsigned int seq_ = ABA_COMPOSE(cntr, pntr);
+		ok = CAS(&amp;rb-&gt;tail, seq, seq_);
+	} while (!ok);
+	unsigned int idx = ABA_PNTR(seq);
+	int data = rb-&gt;buf[idx];
+
+	//commit，原理和push的类似
+	try_cnt = 0;
+	unsigned int pntr = 0;
+	do 
+	{
+		try_cnt++;
+		if (try_cnt &gt; 1)
+		{
+			sleep(0);//让给其他线程去执行
+		}
+		pntr = ABA_PNTR(seq);
+	} while (!CAS(&amp;rb-&gt;back_door, pntr, (pntr + 1) % sz));
+	return data;
+}
+</pre>
+</div>
+</div>
+</div>
 <div id="outline-container-sec-6" class="outline-2">
 <h2 id="sec-6">cache treshing（内存颠簸）</h2>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: robin</p>
-<p class="date">Created: 2016-04-20 Wed 11:34</p>
+<p class="date">Created: 2016-04-26 Tue 16:59</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
