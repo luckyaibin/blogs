@@ -1,0 +1,707 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>truetypefont</title>
+<!-- 2016-05-18 Wed 10:07 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="robin" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">truetypefont</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">概述</a></li>
+<li><a href="#sec-2">TTF文件总体结构</a>
+<ul>
+<li><a href="#sec-2-1">offset table:</a></li>
+<li><a href="#sec-2-2">描述表目录:(个数由numTables决定,每个目录项16字节)</a></li>
+<li><a href="#sec-2-3">各个描述表的结构不同</a>
+<ul>
+<li><a href="#sec-2-3-1">代码映射表 'cmap'</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#sec-3">描述表介绍</a>
+<ul>
+<li><a href="#sec-3-1">代码映射表 'cmap'</a></li>
+<li><a href="#sec-3-2">轮廓数据表 'glyf'</a></li>
+<li><a href="#sec-3-3">文件投标 'head'</a></li>
+<li><a href="#sec-3-4">轮廓数据索引表 'loca'</a></li>
+<li><a href="#sec-3-5">最大值描述表 'maxp'</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">关于cmap里的segCountX2,searchRange,entrySelector,rangeShift和针对binary search的优化</a>
+<ul>
+<li><a href="#sec-4-1">Format 4</a></li>
+<li><a href="#sec-4-2">从Format 4 里计算glyph索引</a>
+<ul>
+<li><a href="#sec-4-2-1">用二分格式里提供的segCount,searchRange,entrySelector,rangeShifter二分查找</a>
+<ul>
+<li><a href="#sec-4-2-1-1">寻找大于等的代码</a></li>
+<li><a href="#sec-4-2-1-2">等于的二分法</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1">概述</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+<a href="http://www.docin.com/p-44990240.html">http://www.docin.com/p-44990240.html</a>
+</p>
+
+<p>
+PostScript Type1 Adobe开发的字体,加密过,收取专利费的.采用三次B-样条.
+</p>
+
+<p>
+ TrueType 由 Microsft 和 Apple联科开发的PDL(page description language)语言TrueImage中的字型描述部分.最初指向打破
+PostScript发明者 Adobe在该领域的垄断地位.采用二次B-样条(Bezier-spline).(推出后,Type1宣布免费)
+</p>
+
+<p>
+ OpenType  由 Microsotf ,Adobe联合开发,是TrueType的扩展,添加了对 -PostScript- 的支持.
+扩展名可能是.OTP或.TTF
+</p>
+
+<ul class="org-ul">
+<li>只包含CFF(PostScript)数据(没有TrueType outlines)的字库扩展名总是.OTF
+</li>
+<li>出于兼容,包含TrueType outlines的字库起扩展名可能是.OTF或者.TTF .
+</li>
+<li>无论字库中是否包含OpenType layout,TrueType Collection字库扩展名应该是.TTC .
+</li>
+</ul>
+</div>
+</div>
+
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2">TTF文件总体结构</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+文件头(offset table)
+描述表目录(table directory)
+描述表(tables)
+</p>
+</div>
+
+<div id="outline-container-sec-2-1" class="outline-3">
+<h3 id="sec-2-1">offset table:</h3>
+<div class="outline-text-3" id="text-2-1">
+<pre class="example">
+fixed sfnt_version;     //TTF文件版本号
+ushort numTables;        //描述表数目
+ushort searchRange;      //描述表快速查找范围
+ushort entrySelector;    //描述表入口选择
+ushort rangeShift;       //范围调整
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-2-2" class="outline-3">
+<h3 id="sec-2-2">描述表目录:(个数由numTables决定,每个目录项16字节)</h3>
+<div class="outline-text-3" id="text-2-2">
+<pre class="example">
+ulong tag;              //描述表名称(4个字符)
+ulong checkSum;         //描述表内容的校验和
+ulong offset;           //此描述表的位置偏移(从文件头开始)
+ulong length;           //描述表字节长度
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-2-3" class="outline-3">
+<h3 id="sec-2-3">各个描述表的结构不同</h3>
+<div class="outline-text-3" id="text-2-3">
+<p>
+常用的TTF文件描述表共有19个,其中有10个位每个FFT必须包含的,其他9个可根据需要任选.
+</p>
+<ul class="org-ul">
+<li>以下10个为必须的:
+</li>
+</ul>
+<pre class="example">
+'cmap'       字符代码到文字序号的映射表(character to glyph index mapping table)
+'glyf'       文字轮廓数据(glyph data)
+'head'       文件头信息(font header)
+'hhea'       水平度量头信息(horizontal header)
+'hmtx'       水平度量信息(horizontal matries)
+'loca'       字符轮廓数据位置索引(index to location)
+'maxp'       最大值描述(maximum profile)
+'name'       名字表(naming table)
+'post'       Postscript 打印机控制
+'OS/2'       OS/2和Windows度量信息(OS/2 and Windows metrics)
+</pre>
+
+<ul class="org-ul">
+<li>以下9个是可选的描述表:
+</li>
+</ul>
+<pre class="example">
+'cvt'       控制值表(control value table)
+'fpgm'      定义程序(font program)
+'hdmx'      水平设备度量(horizontal device metrics)
+'kern'      紧排控制(kerning)
+'LTSH'      线性门限(linear threshold)
+'prep'      CVT程序区(control value program)
+'WIN'       保留(reserved for future use)
+'VDMX'      垂直设备度量(vertical device metrics)
+'FOCA'      保留(reserved for IBM Object Content Architecture data)
+</pre>
+</div>
+
+<div id="outline-container-sec-2-3-1" class="outline-4">
+<h4 id="sec-2-3-1">代码映射表 'cmap'</h4>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3">描述表介绍</h2>
+<div class="outline-text-2" id="text-3">
+</div><div id="outline-container-sec-3-1" class="outline-3">
+<h3 id="sec-3-1">代码映射表 'cmap'</h3>
+</div>
+
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2">轮廓数据表 'glyf'</h3>
+</div>
+
+<div id="outline-container-sec-3-3" class="outline-3">
+<h3 id="sec-3-3">文件投标 'head'</h3>
+</div>
+
+<div id="outline-container-sec-3-4" class="outline-3">
+<h3 id="sec-3-4">轮廓数据索引表 'loca'</h3>
+</div>
+
+<div id="outline-container-sec-3-5" class="outline-3">
+<h3 id="sec-3-5">最大值描述表 'maxp'</h3>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4">关于cmap里的segCountX2,searchRange,entrySelector,rangeShift和针对binary search的优化</h2>
+<div class="outline-text-2" id="text-4">
+</div><div id="outline-container-sec-4-1" class="outline-3">
+<h3 id="sec-4-1">Format 4</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+是双字节编码。这种格式用于字体文件中的编码分布与几个连续的区域，在区域之间可能有一些保留的空白。而有一些编码可能并不会与字体中的glyph对应。2字节的压缩编码则使用format6。
+</p>
+
+<p>
+Format4的格式:
+</p>
+<pre class="example">
+struct cmap_subtable_format4
+{
+#define  segCount 10000
+#define  arbitrary_length 10000
+	USHORT 	format;//	 	 	Format number is set to 4.
+	USHORT 	length;//	 		This is the length in bytes of the subtable.
+	USHORT 	language;//	 	 	Please see “Note on the language field in 'cmap' subtables“ in this document.
+	USHORT 	segCountX2;//	 	 	2 x segCount.
+	USHORT 	searchRange;//	 		2 x(2 * *floor(log2(segCount)))
+	USHORT 	entrySelector;//	 		log2(searchRange / 2)
+	USHORT 	rangeShift;//	 		2 x segCount - searchRange
+	USHORT 	endCount[segCount];//	 	 	End characterCode for each segment, last = 0xFFFF.
+	USHORT 	reservedPad;//	 	 	Set to 0.
+	USHORT 	startCount[segCount];//	 	 	Start character code for each segment.
+	SHORT 	idDelta[segCount];//	 	 	Delta for all character codes in segment.
+	USHORT 	idRangeOffset[segCount];//	 	 	Offsets into glyphIdArray or 0
+	USHORT 	glyphIdArray[arbitrary_length];//		Glyph index array(arbitrary length)
+#undef segCount
+#undef arbitrary_length 10000
+};
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-4-2" class="outline-3">
+<h3 id="sec-4-2">从Format 4 里计算glyph索引</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+segCount以及idDelta存在的目的,是因为字符编码不是连续的(为什么不连续还不清楚):
+</p>
+
+<p>
+比如:字符编码10－20，30－990，100－153才拥有对应的glyph索引.
+如果不进行特殊处理,那么glyph映射必定也是
+glyph<sup><a id="fnr.1" name="fnr.1" class="footref" href="#fn.1">1</a></sup> = 没有笔画数据
+glyph<sup><a id="fnr.2" name="fnr.2" class="footref" href="#fn.2">2</a></sup> = 没有笔画数据
+&#x2026;
+glyph<sup><a id="fnr.3" name="fnr.3" class="footref" href="#fn.3">3</a></sup>=笔画数据
+glyph<sup><a id="fnr.4" name="fnr.4" class="footref" href="#fn.4">4</a></sup>=笔画数据
+&#x2026;
+glyph<sup><a id="fnr.5" name="fnr.5" class="footref" href="#fn.5">5</a></sup>=笔画数据
+</p>
+
+<p>
+glyph<sup><a id="fnr.6" name="fnr.6" class="footref" href="#fn.6">6</a></sup>=没有笔画数据
+&#x2026;
+导致glyph数据有很多空白.所以需特殊处理,把不连续的数据映射到从0开始都有数据的glyph数组上.
+使用了idDelta来差量计算(某个segment以及之前的segment"跳过"了多少个数据,进行差值计算)
+</p>
+</div>
+
+<div id="outline-container-sec-4-2-1" class="outline-4">
+<h4 id="sec-4-2-1">用二分格式里提供的segCount,searchRange,entrySelector,rangeShifter二分查找</h4>
+<div class="outline-text-4" id="text-4-2-1">
+<p>
+为什么使用segCount和对应的searchRange,entrySelector,rangeShift能够进行优化过的 optimized binary search(二分查找)?
+</p>
+
+<p>
+其实真正有用的是segCount,其他的数据都是根据segCount计算出来的:
+比如:字符编码10－20，30－990，100－153才拥有对应的glyph索引,那么分为4段(最后一个增加的是为了表示段表结束)
+</p>
+
+<pre class="example">
++-------------+----------+----------+-------------+----------+
+|Name         |segment 1 |segment 2 |segment 3    |segment 4 |
+|             |char 10-20|char 30-90|char 100-153 |MissingGlyph|
++-------------+----------+----------+-------------+----------+
+|startCode    |  10      |  30      |  100        | 0xFFFF   |
++-------------+----------+----------+-------------+----------+
+|endCode      |  20      |  90      |  153        | 0xFFFF   |
++-------------+----------+----------+-------------+----------+
+|idDelta      |  -9      |  -18     |  -27        |  x       |
++-------------+----------+----------+-------------+----------+
+|idRangeOffset|  0       |  0       |  0          |  0       |
++-------------+----------+----------+-------------+----------+
+</pre>
+<p>
+针对这几个值的解释,其实<a href="https://partners.adobe.com/public/developer/en/font/5180.sfnt.pdf">https://partners.adobe.com/public/developer/en/font/5180.sfnt.pdf</a> 这里说的比较清楚
+UINT16 startCode[size],每个元素的大小是sizeof(UINT16) = 2
+那么针对ttf或ttc文件里存储的数据,如果segCount=39,那么文件里各个字段:
+segCountX2         78  (39*2)                       &#x2014;&gt; segCount*2 = 39*2=78
+searchRange     64     (2 * largest power of 2 &lt;=39)&#x2014;&gt; sizeof(UINT16) * (小于等于39的最大的2的幂)
+entrySelector     5     log2 (32)                    &#x2014;&gt; log2(小于等于39的最大的2的幂)==log2(searchRange&gt;&gt;1)
+rangeShift         14     2 x 39 - 64                  &#x2014;&gt; sizeof(UINT16) * ( segCount-小于等于39的最大的2的幂) = 2 * segCount - 2*(小于等于39的最大的2的幂) = 2*segCount - searchRange
+</p>
+
+<p>
+<b>也就是说,searchRange里和rangeShift里的乘以2,根本就很混淆视听,它把搜索范围用乘以2的操作转成了字节(byte),根本不直观</b>
+</p>
+
+<p>
+不如把searchRange 和 rangeShift就当成segCount的搜索范围来得直观.
+假设已经从文件里读取出来了segCountX2,searchRange,entrySelector,rangeShift的值:
+二分查找伪代码:
+</p>
+
+<pre class="example">
+segCount = segCountX2 &gt;&gt; 1;                    ---&gt; 39
+searchRange = searchRange&gt;&gt;1                   ---&gt; 32
+entrySelector = entrySelector;                 ---&gt; 5
+rangeShift = rangeShift &gt;&gt; 1;                  ---&gt; 7
+
+经过上面的操作,接下来这4者之间的关系如下:
+
+entrySelector=N,也就是二分查找searchRange所需要的次数
+rangeShift一定是小于searchRange的!因为searchRange小于等于segCount的最大的2^N,如果
+rangeShift &gt;= searchRange,那么searchRange就应该是2^(N+1),矛盾
+|-----------------------segCount--------------------|
+|--rangeShift--|-------searchRange(2^N)-------------|
+
+
+endCode[segCount]数组,一共是segCount个元素:
+  0    1    2     ...                      segCount-1
+|-20-|-90-|-153-| ...                   ...|-0xFFFF-|
+
+
+因为endCount[segCount]数组是按照endCode升序排列的,
+我们需要寻找第一个endCode大于等于character code的段(段的索引,0,1,2...),然后检查
+startCode是否小于等于character code,如果是则根据idDelta[N]和idRangeOffset去映射glyph索引(index),
+否则返回 missingGlyph.
+
+ +------------------------------+     +-----------------------------------------+
+ |                              |     |                                         |
+ |       startCode              |     |                            endCode      |
+ |  +----------------------+    |     |   index:     address:    +---------+    |
+ |  |    10                |    |     |     0         0xBBB1     | 20      |    |
+ |  |----------------------+    |     |                          +---------+    |
+ |  |    30                |    |     |     1         0xBBB2     | 90      |    |
+ |  +----------------------+    |     |                          |---------+    |
+ |  |    100               |    |     |     2         0xBBB3     | 153     |    |
+ |  +----------------------+    |     |                          |---------+    |
+ |  |                      |    |     |     3         0xBBB4     | ...     |    |
+ |  +----------------------+    |     |                          +---------+    |
+ |  |                      |    |     |                          |         |    |
+ |  |                      |    |     |                          |         |    |
+ |  +----------------------+    |     |                          +---------+    |
+ |  |                      |    |     |                          |         |    |
+ |  +----------------------+    |     |                          |---------+    |
+ |  |  0xFFFF              |    |     |  segCount-1   0xXXXX     | 0xFFFF  |    |
+ |  +----------------------+    |     |                          +---------+    |
+ |                              |     |                                         |
+ +------------------------------+     +-----------------------------------------+
+
+
+
+******下面,针对int endCode[10] = { 0, 11, 22, 33, 44, 55, 66, 77, 88, 99 };这个数组进行举例.*******
+
+//enCode:{ 0,    11,   22,  33,  44,  55,  66,  77,  88,  99 }
+//index :  0     1     2    3    4    5    6    7    8    9  
+//    |&lt;-rangShift-&gt;|&lt;--------------searchRange------------&gt;|
+  
+//segCount = 10;
+//rangeShift=2
+//entrySelector=4;
+//searchRange=8
+
+//rangeShift一定是小于searchRange的!因为searchRange小于等于segCount的最大的2^N,如果
+//rangeShift &gt;= searchRange,那么searchRange就应该是2^(N+1),矛盾
+//所以二分查找一定在entrySelector次后结束
+
+//这里有个特性,也就是关键点,searchRange会历经 8 4 2 1 0(到0就结束)
+//比如 1 2 4 8 16 32 64 128 ... N1 ... N2 这种序列,小于N的任意数,可以由比它小的序列相加来得到!
+//例如,小于32 的 数可以由 1 2 4 8 16来得到:
+      1 + 2 + 4 + 8 + 16 = 31
+          2 + 4 + 8 + 16 = 30
+      1     + 4 + 8 + 16 = 29
+              4 + 8 + 16 = 28
+      1 + 2     + 8 + 16 = 27
+          2     + 8 + 16 = 26
+      1         + 8 + 16 = 25
+                  8 + 16 = 24
+      1 + 2 + 4     + 16 = 23
+          2 + 4     + 16 = 22
+      1     + 4     + 16 = 21
+              4     + 16 = 20
+      1 + 2         + 16 = 19
+          2         + 16 = 18
+      1             + 16 = 17
+//其实从二进制看就很明了:
+32 = 100000
+16 =  10000
+8  =   1000
+4  =    100
+2  =     10
+1  =      1
+
+int search_index = 0;
+//一共是segCount,而索引是0开始的,所以索引是0 ~ segCount-1;
+if (codepoint &gt; endCode[rangeShift-1]) //如果rangeShift最后一个元素不满足大于等于codepoint,直接跳到searchRange的第一个,下标是rangeShift
+{
+  search_index = search_index + rangeShift;
+}
+while(entrySelector&gt;0)
+{
+  if(codepint &gt; endCode[search_index + searchRange&gt;&gt;1])
+ {
+   search_index = search_index + searchRange &gt;&gt; 1; 
+ }
+ searchRange = searchRange &gt;&gt; 1;
+ entrySelector--;
+}
+</pre>
+
+<p>
+上面的伪代码最终找出来的(可能)是小于codepoint的最大索引.而不是我们需要的
+大于等于codepoint的最小索引(两者就相差1).
+下面给出寻找大于等于codepoint的最小索引的代码,以及用类似方法实现的二分查找算法
+</p>
+</div>
+
+<div id="outline-container-sec-4-2-1-1" class="outline-5">
+<h5 id="sec-4-2-1-1">寻找大于等的代码</h5>
+<div class="outline-text-5" id="text-4-2-1-1">
+<pre class="example">
+//使用二分法查找endCode数组里大于等于(greater equal)codepoint的索引
+void bsearch_greater_equal(int codepoint)
+{
+	//printf("codepoing:%d\n", codepoint);
+	int endCode[10] = { 0, 11,     22, 33, 44, 55, 66, 77, 88, 99 };
+ 
+	int searchRange = 8;
+	int rangeShift = 2;
+	int entrySelector = 3;
+
+
+	int search_index = 0;
+	if (codepoint &gt; endCode[rangeShift - 1]) //如果rangeShift最后一个元素不满足大于等于codepoint, 直接跳到searchRange的第一个, 下标是rangeShift
+		search_index = search_index + rangeShift;
+	int orignal_search_index = search_index;//相当于数组把数组整体向左移动了rangeShift个位置,orignal_search_index记录起始索引
+	while (entrySelector &gt; 0)
+	{
+		int next_index = search_index + (searchRange &gt;&gt; 1);
+		int next_code = endCode[next_index];
+		if (next_code &lt; codepoint )//最后得到的索引是小于codepoint的最大索引
+		{
+			search_index = next_index;
+		}
+		searchRange = searchRange &gt;&gt; 1;
+		entrySelector--;
+	}
+
+	//  { &gt;=,&gt;=,&gt; , ...&gt; , &gt;, &gt;, &gt; ...}
+	//   /|\
+	//    |
+	//search_index
+	if (search_index == orignal_search_index)//一次都没改变过,说明右边没有比它小的,需要检查它本身和下一个是否满足大于等于它
+	{
+		if (endCode[orignal_search_index] &gt;= codepoint)
+		{
+			search_index = orignal_search_index;
+		}
+		else if (endCode[orignal_search_index + 1] &gt;= codepoint)
+		{
+			search_index = orignal_search_index + 1;
+		}
+	}
+	//  { &lt;,&lt;,&lt; , ...&lt; , &gt;=, &gt;, &gt; ...}
+	//              /|\
+	//               |
+	//          search_index
+	else//经过上面循环之后,search_index是小于(&lt;)unicode_point的左边界,那么大于等于的在后面,需要+1
+	{
+		search_index++;
+	}
+	printf("codepoint : %d find search_index: %d\n", codepoint,search_index);
+}
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-4-2-1-2" class="outline-5">
+<h5 id="sec-4-2-1-2">等于的二分法</h5>
+<div class="outline-text-5" id="text-4-2-1-2">
+<pre class="example">
+//使用二分法查找endCode数组里等于(greater equal)codepoint的索引
+void bsearch_equal(int codepoint)
+{
+	//printf("codepoing:%d\n", codepoint);
+	int endCode[10] = { 0, 11, 22, 33, 44, 55, 66, 77, 88, 99 };
+	//                             idx        idx   idx idx'
+
+	int searchRange = 8;
+	int rangeShift = 2;
+	int entrySelector = 3;
+
+
+	int search_index = 0;
+	if (codepoint &gt; endCode[rangeShift - 1]) //如果rangeShift最后一个元素不满足大于等于codepoint, 直接跳到searchRange的第一个, 下标是rangeShift
+		search_index = search_index + rangeShift;
+	int orignal_search_index = search_index;//相当于数组起始元素
+	while (entrySelector &gt; 0)
+	{
+		int next_index = search_index + (searchRange &gt;&gt; 1);
+		int next_code = endCode[next_index];
+		if (next_code &lt; codepoint)
+		{
+			search_index = next_index;
+		}
+		searchRange = searchRange &gt;&gt; 1;
+		entrySelector--;
+	}
+
+	//  { &gt;=,&gt;=,&gt; , ...&gt; , &gt;, &gt;, &gt; ...}
+	//   /|\
+	//    |
+	//search_index
+	if (search_index == orignal_search_index)//一次都没改变过,说明右边没有比它小的,需要检查它本身和下一个是否等于它
+	{
+		if (endCode[orignal_search_index] == codepoint)
+		{
+			search_index = orignal_search_index;
+		}
+		else if (endCode[orignal_search_index + 1] == codepoint)
+		{
+			search_index = orignal_search_index + 1;
+		}
+		else//都不满足等于,说明没有找到
+		{
+			search_index = -1;
+		}
+	}
+	//  { &lt;,&lt;,&lt; , ...&lt; , &gt;=, &gt;, &gt; ...}
+	//              /|\
+	//               |
+	//          search_index
+	else//经过上面循环之后,search_index是小于(&lt;)unicode_point的左边界,那么大于等于的在后面,需要+1
+	{
+		search_index++;
+		if (endCode[search_index] != codepoint)//下一个大于等于的边界不等于,没找到
+		{
+			search_index = -1;
+		}
+	}
+	printf("codepoint : %d find search_index: %d\n", codepoint, search_index);
+}
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" name="fn.1" class="footnum" href="#fnr.1">1</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+<div class="footdef"><sup><a id="fn.2" name="fn.2" class="footnum" href="#fnr.2">2</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+<div class="footdef"><sup><a id="fn.3" name="fn.3" class="footnum" href="#fnr.3">3</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+<div class="footdef"><sup><a id="fn.4" name="fn.4" class="footnum" href="#fnr.4">4</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+<div class="footdef"><sup><a id="fn.5" name="fn.5" class="footnum" href="#fnr.5">5</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+<div class="footdef"><sup><a id="fn.6" name="fn.6" class="footnum" href="#fnr.6">6</a></sup> <p>DEFINITION NOT FOUND.</p></div>
+
+
+</div>
+</div></div>
+<div id="postamble" class="status">
+<p class="author">Author: robin</p>
+<p class="date">Created: 2016-05-18 Wed 10:07</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
