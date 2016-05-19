@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<title>内容列表</title>
+<title>ttf中分割贝塞尔曲线(自己想的,不采用递归方式)</title>
 <!-- 2016-05-19 Thu 18:06 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
@@ -137,107 +137,150 @@ for the JavaScript code in this tag.
 </head>
 <body>
 <div id="content">
-<h1 class="title">内容列表</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#sec-1">内存栅栏 view it</a></li>
-<li><a href="#sec-2">MemoryBarrierAHardwareViewForSoftwareHackers</a></li>
-<li><a href="#sec-3">无锁队列 view it</a>
-<ul>
-<li><a href="#sec-3-1">lockfree</a></li>
-</ul>
-</li>
-<li><a href="#sec-4">字体渲染(TrueType Font,OpenType Font) View it</a>
-<ul>
-<li><a href="#sec-4-1">freetype glyph raster 查看</a></li>
-<li><a href="#sec-4-2">分割贝塞尔曲线 View it</a></li>
-</ul>
-</li>
-</ul>
-</div>
-</div>
-
-<div id="outline-container-sec-1" class="outline-2">
-<h2 id="sec-1">内存栅栏 <a href="memory_barrier.html">view it</a></h2>
-<div class="outline-text-2" id="text-1">
+<h1 class="title">ttf中分割贝塞尔曲线(自己想的,不采用递归方式)</h1>
 <p>
-栅栏的存在是为了解决多线程乱序执行的问题:而乱序有两种 
+针对存在水平切线(切点为X)的p1~p2~p3的贝塞尔曲线,我们从X分割成两个贝塞尔曲线
 </p>
-<ol class="org-ol">
-<li>编译器重排指令
-</li>
-<li>cpu为了效率，颠倒指令执行顺序(实际并不是指令乱序,而是因为变量读取出来的顺序不一样,导致看起来像是指令乱序)
-</li>
-</ol>
-</div>
-</div>
-
-<div id="outline-container-sec-2" class="outline-2">
-<h2 id="sec-2">MemoryBarrierAHardwareViewForSoftwareHackers</h2>
-<div class="outline-text-2" id="text-2">
+<pre class="example">
+                P2
+               *
+                             # on curve
+                             * off curve
+         __-X--_
+      _--       -_
+P1  _-            -          A non-y-monotonic Bézier arc.
+   #               \
+                    -        Here we have
+                     \              P2.y &gt;= P1.y &amp;&amp;
+                      \  P3         P2.y &gt;= P3.y      (!)
+                       #
+</pre>
 <p>
-一篇介绍memory barrier的好文章,本人翻译(有机器翻译的感觉..) 
-<a href="MemoryBarrierAHardwareViewForSoftwareHackers.html">view it</a> 
-</p>
-</div>
-</div>
-<div id="outline-container-sec-3" class="outline-2">
-<h2 id="sec-3">无锁队列 <a href="lockfreequeue.html">view it</a></h2>
-<div class="outline-text-2" id="text-3">
-</div><div id="outline-container-sec-3-1" class="outline-3">
-<h3 id="sec-3-1">lockfree</h3>
-<div class="outline-text-3" id="text-3-1">
-<ol class="org-ol">
-<li>什么是lockfree,不是不需要同步，而是不用开销大的mutex等，仅仅使用 CAS 原子操作进行 <b>同步</b>
-</li>
-<li>可能的问题
-<ul class="org-ul">
-<li>ABA问题
-</li>
-<li>memory barrier
-</li>
-</ul>
-</li>
-</ol>
-</div>
-</div>
-</div>
-
-<div id="outline-container-sec-4" class="outline-2">
-<h2 id="sec-4">字体渲染(TrueType Font,OpenType Font) <a href="truetypefont.html">View it</a></h2>
-<div class="outline-text-2" id="text-4">
-</div><div id="outline-container-sec-4-1" class="outline-3">
-<h3 id="sec-4-1">freetype glyph raster <a href="freetype_raster.txt">查看</a></h3>
-</div>
-<div id="outline-container-sec-4-2" class="outline-3">
-<h3 id="sec-4-2">分割贝塞尔曲线 <a href="bezier_show.html">View it</a></h3>
-<div class="outline-text-3" id="text-4-2">
-<p>
-<a href="img/number/0.png">hello</a>
-<img src="img/number/1.png" alt="1.png" />
-<img src="img/1.png" alt="1.png" />
-<i>img/1.png</i>
+三个顶点坐标:
+p1 (x1,y1)
+p2 (x2,y2)
+p3 (x3,y3)
 </p>
 
 <p>
-<a href="oxford3000.txt">牛津3000词汇表</a>
+bezier曲线方程如下:
+B(t) = (1-t)<sup>2</sup> * p1 + 2t(1-t) * p2 + t<sup>2</sup> * p3
+针对t,求导:
+B'(t) = -2(1-t) * p1 + 2*((1-t) - t)*p2 + 2t * p3
+B'(t) = 2(t-1) * p1 + 2(1-2t)*p2 + 2t * p3
+</p>
+
+<p>
+令B'(t) = 0,就是曲线的水平或竖直切线:
+</p>
+
+<p>
+0 = 2t*p1 - 2*p1 - 4t*p2 + 2*p2 + 2t * p3
+0 = t*(2*p1 - 4*p2 + 2*p3) - 2*p1 + 2*p2
+    (2*p1 - 2*p2)
+t = -&#x2014;&#x2014;&#x2014;&#x2014;
+    2*(p1-2*p2+p3)
+    p1 - p2
+t = -&#x2014;&#x2014;&#x2014;
+    p1-2*p2+p3
+</p>
+
+<p>
+针对水平切线,需要使用p1,p2,p3的y坐标值代入(垂直使用x坐标代入),
+求得t<sub>y</sub> = (p1.y - p2.y)/(p1.y - 2*p2.y + p3.y);
+</p>
+
+<p>
+然后根据B(t)公式求出切点X的x,y坐标:
+X<sub>x</sub> = (1-t<sub>y</sub>)<sup>2</sup> * p1.x + 2t<sub>y</sub>(1-t<sub>y</sub>) * p2.x + t<sub>y</sub><sup>2</sup> * p3.x   (1)
+X<sub>y</sub> = (1-t<sub>y</sub>)<sup>2</sup> * p1.y + 2t<sub>y</sub>(1-t<sub>y</sub>) * p2.y + t<sub>y</sub><sup>2</sup> * p3.y   (2)
 </p>
 
 
 <p>
-<i>注脚1</i>
-<i>注脚2</i>
-20160414
-<a href="#my-anchor">internallinkage</a>
+*接下来需要求p1~x,和x~p3这两段的贝塞尔方程(的控制点) c *
 </p>
+<pre class="example">
+                P2
+               *
+
+    c                         
+         __-X--_
+      _--       -_
+P1  _-            -         
+   #               \
+                    -        
+                     \             
+                      \  P3         
+                       #
+</pre>
+
 <p>
-<a id="my-anchor" name="my-anchor"></a>* hello
+其实我们需要理解的bezier曲线的原理:控制点和起始点的连线和他们形成的曲线都是相切的.
+所以 p1-c 平行于 p1-p2,而c-x是水平的,所以c在p1-p2和过x的水平切线的交点上.
+</p>
+
+<p>
+直线p1-p2: L(t) = p1 + (p2-p1)*t ,t∈[0,1]
+而过X的水平切线时,t=(X<sub>y</sub>-p1.y)/(p2.y-p1.y);
+所以c = p1 + (p2-p1)*(X<sub>y</sub>-p1.y)/(p2.y-p1.y);
+</p>
+
+<p>
+c<sub>x</sub> = p1.x + (p2.x - p1.x) * (X<sub>y</sub> - p1.y)/(p2.y-p1.y);  (3)
+而因为是水平直线,所以:
+c<sub>y</sub> = X<sub>y</sub>,不用再计算                                     (4)
+而X<sub>x和X</sub><sub>y已经由上面</sub>(1) (2)的公式计算出来了
+</p>
+
+<p>
+所以c<sub>x</sub>,c<sub>y</sub> 可以求出来了.
+</p>
+
+
+
+<p>
+下面给出lua代码::
+</p>
+<div class="org-src-container">
+
+<pre class="src src-lua">  <span style="color: #465457; font-style: italic;">--</span><span style="color: #465457; font-style: italic;">&#20999;&#32447;&#26159;&#27700;&#24179;&#26041;&#21521;:</span>
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">p1</span> = {x=100,y=250};
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">p2</span> = {x=250,y=100};
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">p3</span> = {x=400,y=450};
+
+  <span style="color: #465457; font-style: italic;">--</span><span style="color: #465457; font-style: italic;">&#27700;&#24179;&#26041;&#21521;&#20999;&#32447;&#20351;&#29992; t_y &#36827;&#34892;&#35745;&#31639;</span>
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">t_x</span> = (p1.x - p2.x)/(p1.x - 2*p2.x + p3.x);
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">t_y</span> = (p1.y - p2.y)/(p1.y - 2*p2.y + p3.y);
+  <span style="color: #465457; font-style: italic;">--</span><span style="color: #465457; font-style: italic;">print('&#27700;&#24179;&#25110;&#31446;&#30452;&#20999;&#32447;&#22788;&#30340;t_x,t_y',t_x,',',t_y);</span>
+
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">X_x</span> = (1-t_y)^2 *p1.x + 2*t_y*(1-t_y)*p2.x + t_y^2 * p3.x;
+<span style="color: #66D9EF;">local</span> <span style="color: #F92672;">X_y</span> = (1-t_y)^2 *p1.y + 2*t_y*(1-t_y)*p2.y + t_y^2 * p3.y;
+<span style="color: #A6E22E;">print</span>(X_x,<span style="color: #E6DB74;">', '</span>,X_y);
+
+c_x = p1.x + (p2.x - p1.x) * (X_y - p1.y)/(p2.y-p1.y);
+c_y = X_y;
+
+<span style="color: #A6E22E;">print</span>(<span style="color: #E6DB74;">'c_x:'</span>,c_x,<span style="color: #E6DB74;">' c_y:'</span>,c_y);
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="img/blog_img/bezier_full.png" alt="bezier_full.png" />
 </p>
 </div>
+
+
+<div class="figure">
+<p><img src="img/blog_img/bezier_part.png" alt="bezier_part.png" />
+</p>
 </div>
-</div>
+
+<p>
+<img src="img/blog_img/bezier_curve.gif" alt="bezier_curve.gif" />
+绿色和红色是切线,两个的连接点就是控制点.
+</p>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: robin</p>
